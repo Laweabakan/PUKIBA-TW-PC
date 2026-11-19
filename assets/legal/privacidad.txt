@@ -1,0 +1,33 @@
+POLÍTICA DE PRIVACIDAD — PUKIBA Defense
+Última actualización: 17 de noviembre de 2026
+
+1. RESPONSABLE
+[NOMBRE DEL TITULAR], [PAÍS]. Contacto: [CORREO DE CONTACTO].
+
+2. QUÉ DATOS RECOGEMOS
+- Progreso del juego: mapas, oleadas, cartas, monedas, gemas y ajustes. Se guarda en tu dispositivo y, si hay conexión, en nuestro servidor (guardado en la nube).
+- Identificador del dispositivo: un identificador anónimo para iniciar sesión sin cuenta en el servidor (Nakama) y asociarlo a tu progreso, ranking y cooperativo. No pedimos nombre, correo ni teléfono.
+- Datos de uso y fallos (Firebase Analytics / Crashlytics de Google): eventos del juego (por ejemplo, oleada alcanzada o compra realizada), modelo del dispositivo, versión del sistema y país aproximado.
+- Publicidad (Google AdMob): el identificador de publicidad del dispositivo y datos técnicos para mostrar y medir anuncios.
+- Compras (Google Play): el pago lo procesa Google; solo recibimos la confirmación de la compra y el producto comprado. Nunca vemos los datos de tu tarjeta.
+
+3. PARA QUÉ LOS USAMOS
+Guardar y recuperar tu progreso, mostrar rankings, emparejarte en cooperativo, entregar compras, mostrar anuncios, mejorar el equilibrio del juego, corregir errores y prevenir trampas o fraude.
+
+4. CON QUIÉN SE COMPARTEN
+Solo con los proveedores que hacen funcionar el juego: Google (Play, Firebase, AdMob) y el proveedor que aloja nuestro servidor. En el ranking los demás jugadores ven tu nombre de comandante y tu oleada. No vendemos tus datos.
+
+5. CUÁNTO TIEMPO LOS GUARDAMOS
+Mientras sigas jugando. Los datos del servidor de cuentas inactivas durante 24 meses pueden borrarse.
+
+6. TUS DERECHOS
+Puedes pedir acceso, corrección o borrado de tus datos escribiendo a [CORREO DE CONTACTO]. Puedes borrar tu progreso local desde Ajustes > "Borrar todo el progreso" y restablecer o limitar el identificador de publicidad en los ajustes de tu dispositivo.
+
+7. MENORES
+El Juego no está dirigido a menores de 13 años y no recogemos a sabiendas datos de ellos. Si crees que un menor nos ha dado datos, escríbenos y los borraremos.
+
+8. SEGURIDAD
+Las comunicaciones con el servidor de producción usan conexiones cifradas (HTTPS). Ningún sistema es 100 % seguro, pero aplicamos medidas razonables.
+
+9. CAMBIOS
+Si cambiamos esta política te avisaremos dentro del Juego.

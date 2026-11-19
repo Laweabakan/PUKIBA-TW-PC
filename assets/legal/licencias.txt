@@ -1,0 +1,8 @@
+LICENCIAS DE TERCEROS — PUKIBA Defense
+Todos los componentes son gratuitos y permiten vender el juego sin pagar regalías ni comisiones.
+
+• Godot Engine — Licencia MIT. Copyright (c) 2014-present Godot Engine contributors; (c) 2007-2014 Juan Linietsky, Ariel Manzur. El texto completo se muestra más abajo. Godot incluye componentes de terceros (FreeType, ENet, mbedTLS, etc.) con sus propias licencias libres.
+• Fuente Fredoka — SIL Open Font License 1.1.
+• Cliente Nakama para Godot (Heroic Labs) — Licencia Apache 2.0.
+• Texturas "sparse_grass" y "dirt" de Poly Haven (polyhaven.com) — CC0 1.0 (dominio público).
+• Modelos 3D, efectos, interfaz y shaders: creados para este juego.

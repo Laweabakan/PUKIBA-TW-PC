@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <rect width="128" height="128" rx="24" fill="#2b1d3a"/>
+  <rect x="34" y="40" width="60" height="70" fill="#8a7a66" stroke="#3b2f25" stroke-width="4"/>
+  <rect x="28" y="28" width="16" height="18" fill="#8a7a66" stroke="#3b2f25" stroke-width="4"/>
+  <rect x="56" y="28" width="16" height="18" fill="#8a7a66" stroke="#3b2f25" stroke-width="4"/>
+  <rect x="84" y="28" width="16" height="18" fill="#8a7a66" stroke="#3b2f25" stroke-width="4"/>
+  <path d="M54 110 V84 a10 10 0 0 1 20 0 V110 Z" fill="#3b2f25"/>
+  <circle cx="64" cy="62" r="10" fill="#7fd4ff"/>
+  <circle cx="64" cy="62" r="5" fill="#e8f8ff"/>
+</svg>

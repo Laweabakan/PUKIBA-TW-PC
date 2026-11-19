@@ -1,0 +1,4 @@
+Texturas de Poly Haven (https://polyhaven.com), licencia CC0 1.0 Universal (dominio público).
+sparse_grass_diff.jpg / sparse_grass_nor.jpg -> https://polyhaven.com/a/sparse_grass
+dirt_diff.jpg / dirt_nor.jpg                 -> https://polyhaven.com/a/dirt
+Se pueden usar en proyectos comerciales sin atribución ni pagos.

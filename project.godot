@@ -1,0 +1,58 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=5
+
+[application]
+
+config/name="PUKIBA Defense"
+config/description="Tower defense de fantasía medieval por cuadrículas."
+run/main_scene="res://scenes/menu.tscn"
+config/features=PackedStringArray("4.3", "GL Compatibility")
+config/icon="res://icon.svg"
+run/flush_stdout_on_print=true
+
+[autoload]
+
+GameData="*res://autoload/game_data.gd"
+Save="*res://autoload/save_manager.gd"
+Meta="*res://autoload/meta.gd"
+Audio="*res://scripts/audio/audio.gd"
+Ads="*res://autoload/ads_manager.gd"
+IAP="*res://autoload/iap_manager.gd"
+Coop="*res://scripts/net/coop.gd"
+Nakama="*res://addons/com.heroiclabs.nakama/Nakama.gd"
+Online="*res://scripts/net/online.gd"
+Firebase="*res://scripts/net/firebase.gd"
+PlayGames="*res://scripts/net/play_games.gd"
+CrashReport="*res://scripts/net/crash_report.gd"
+
+[debug]
+
+file_logging/enable_file_logging=true
+
+[display]
+
+window/size/viewport_width=720
+window/size/viewport_height=1280
+window/stretch/mode="canvas_items"
+window/stretch/aspect="keep"
+window/handheld/orientation=1
+
+[input_devices]
+
+pointing/emulate_touch_from_mouse=true
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+anti_aliasing/quality/msaa_3d=2
+anti_aliasing/quality/msaa_3d.mobile=1
+textures/vram_compression/import_etc2_astc=true
+environment/defaults/default_clear_color=Color(0.08, 0.07, 0.1, 1)

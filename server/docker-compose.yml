@@ -1,0 +1,34 @@
+# Servidor de producción sencillo para PUKIBA Defense (Nakama + CockroachDB).
+# Uso en un VPS con Docker:  docker compose up -d
+# Cambia todas las claves marcadas con CAMBIAR antes de publicar y pon las mismas
+# (server_key, host) en scripts/net/online.gd.
+services:
+  cockroachdb:
+    image: cockroachdb/cockroach:latest-v24.1
+    command: start-single-node --insecure --store=attrs=ssd,path=/var/lib/cockroach/
+    restart: unless-stopped
+    volumes:
+      - data:/var/lib/cockroach
+  nakama:
+    image: registry.heroiclabs.com/heroiclabs/nakama:3.42.0
+    depends_on: [cockroachdb]
+    entrypoint:
+      - "/bin/sh"
+      - "-ecx"
+      - >
+        /nakama/nakama migrate up --database.address root@cockroachdb:26257 &&
+        exec /nakama/nakama --name pukiba --database.address root@cockroachdb:26257
+        --socket.server_key CAMBIAR_server_key
+        --session.encryption_key CAMBIAR_session_key
+        --session.refresh_encryption_key CAMBIAR_refresh_key
+        --runtime.http_key CAMBIAR_http_key
+        --console.username admin --console.password CAMBIAR_password
+    restart: unless-stopped
+    volumes:
+      - ./nakama/modules:/nakama/data/modules
+    ports:
+      - "7349:7349"
+      - "7350:7350"
+      - "7351:7351"
+volumes:
+  data:
