@@ -49,6 +49,17 @@ var cam_focus := Vector2.ZERO # punto del suelo (x, z) que mira la cámara
 var cam_zoom := 1.0
 var _cam_offset := Vector3.ZERO
 var _cam_base := Vector3.ZERO # desplazamiento de la cámara sin girar
+var _cam_attr: CameraAttributesPractical
+var _hp_back := _round_box(4)
+var _hp_fill := _round_box(4)
+
+
+static func _round_box(r: int) -> StyleBoxFlat:
+	var s := StyleBoxFlat.new()
+	s.set_corner_radius_all(r)
+	s.corner_detail = 4
+	s.anti_aliasing = true
+	return s
 var view_rot := 0 # giro de la vista en pasos de 90° (0..3)
 var _touches := {}
 var _press_pos := Vector2.ZERO
@@ -98,7 +109,6 @@ var _menu_overlay: Control
 ## Accesos de la columna derecha en la batalla (los mismos que en el menú, sin cooperativo)
 const BATTLE_SIDE := [
 	["packs", "Sobres", "gift", Color(0.95, 0.35, 0.45)],
-	["shop", "Tienda", "chest", Color(0.95, 0.6, 0.2)],
 	["collection", "Colección", "cards", Color(0.42, 0.5, 0.95)],
 	["achievements", "Logros", "trophy", Color(0.25, 0.6, 0.9)],
 	["ranking", "Ranking", "trophy", Color(0.85, 0.45, 0.2)],
@@ -121,6 +131,11 @@ var build_info: PanelContainer # ficha de la torre o héroe elegido para constru
 var shop_panel: PanelContainer
 var btn_build: Button
 var btn_cards: Button
+var btn_shop: Button
+var minimap: Minimap
+var boss_bar: PanelContainer
+var boss_name: Label
+var boss_hp: ProgressBar
 var shop_mode := "progress" # "progress": torres del juego · "cards": torres y héroes de sobres
 var btn_demolish: Button
 var demolish_mode := false
@@ -234,45 +249,77 @@ func _build_world() -> void:
 	e.background_color = haze.darkened(0.25)
 	e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	e.ambient_light_color = Color(0.95, 0.86, 0.78)
-	e.ambient_light_energy = 0.38
-	e.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	e.ambient_light_energy = 0.32
+	e.tonemap_mode = Environment.TONE_MAPPER_ACES # PC: más contraste y color que el filmic
+	e.tonemap_white = 6.0
 	# Mapas muy claros (nieve, hielo): menos exposición para que las facetas no se quemen en blanco
 	var bright := clampf((ground.get_luminance() - 0.45) / 0.35, 0.0, 1.0)
-	e.tonemap_exposure = lerpf(1.0, 0.82, bright)
+	e.tonemap_exposure = lerpf(1.18, 0.92, bright)
 	e.fog_enabled = true
 	e.fog_mode = Environment.FOG_MODE_DEPTH
 	e.fog_light_color = haze
+	# PC: la cámara está más lejos (mapas grandes); la neblina empieza después
+	var cam_dist := GameData.COLS + 2.0
 	e.fog_density = 0.85
-	e.fog_depth_begin = 16.0
-	e.fog_depth_end = 46.0
+	e.fog_depth_begin = cam_dist * 1.7
+	e.fog_depth_end = cam_dist * 4.0
 	e.fog_depth_curve = 1.4
 	e.fog_sky_affect = 0.6
 	e.adjustment_enabled = true
-	e.adjustment_saturation = 1.0
-	e.adjustment_contrast = 1.12
+	e.adjustment_saturation = 1.04
+	e.adjustment_contrast = 1.08
+	var high := bool(Save.data.get("settings", {}).get("quality_high", true))
+	# PC (Forward+): oclusión ambiental (sombreado suave en rincones, bases de torres y árboles)
+	e.ssao_enabled = high
+	e.ssao_radius = 1.2
+	e.ssao_intensity = 2.2
+	e.ssao_power = 1.6
+	e.ssao_detail = 0.6
+	e.ssao_light_affect = 0.15
+	# Iluminación indirecta de pantalla: los colores rebotan un poco (más cálido y con volumen)
+	e.ssil_enabled = high
+	e.ssil_intensity = 0.4
+	e.ssil_radius = 3.0
 	# Brillo suave en lo mágico (portales, runas, fuego)
 	e.glow_enabled = true
-	e.glow_intensity = 0.4
-	e.glow_strength = 0.9
+	e.glow_intensity = 0.45
+	e.glow_strength = 0.95
 	e.glow_bloom = 0.0
-	e.glow_hdr_threshold = 1.4
+	e.glow_hdr_threshold = 1.2
 	e.glow_blend_mode = Environment.GLOW_BLEND_MODE_ADDITIVE
 	env.environment = e
 	world.add_child(env)
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-52, -38, 0)
-	sun.light_energy = lerpf(1.1, 0.62, bright) # en la nieve el sol satura: más suave
+	sun.light_energy = lerpf(1.15, 0.65, bright) # en la nieve el sol satura: más suave
 	sun.light_color = Color(1.0, 0.89, 0.74) # sol de tarde, cálido
-	sun.shadow_blur = 1.5
-	sun.shadow_enabled = bool(Save.data.get("settings", {}).get("quality_high", true))
-	sun.directional_shadow_max_distance = 40.0
-	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL # 1 pasada de sombra en vez de 4
+	sun.shadow_blur = 1.2
+	sun.shadow_enabled = high
+	sun.shadow_bias = 0.03
+	sun.shadow_normal_bias = 1.2
+	sun.light_angular_distance = 0.8 # sombras de bordes suaves (sol con tamaño)
+	sun.directional_shadow_max_distance = cam_dist * 3.0
+	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS # PC: más detalle cerca
+	sun.directional_shadow_blend_splits = true
 	world.add_child(sun)
+	# Luz de relleno fría desde el lado contrario: volumen sin aplanar los colores
+	var fill := DirectionalLight3D.new()
+	fill.rotation_degrees = Vector3(-35, 140, 0)
+	fill.light_energy = 0.18
+	fill.light_color = Color(0.7, 0.8, 1.0)
+	fill.shadow_enabled = false
+	world.add_child(fill)
 	camera = Camera3D.new()
 	camera.keep_aspect = Camera3D.KEEP_WIDTH # el ancho de la pantalla abarca todas las columnas
 	camera.fov = 62.0 # campo horizontal (pantalla 16:9)
 	world.add_child(camera)
 	camera.current = true
+	# Efecto maqueta (tilt-shift): lo lejano se desenfoca un poco, como un tablero en miniatura
+	if high:
+		_cam_attr = CameraAttributesPractical.new()
+		_cam_attr.dof_blur_far_enabled = true
+		_cam_attr.dof_blur_amount = 0.05
+		camera.attributes = _cam_attr
 	# Mapa alargado en vertical: enemigos arriba, castillo abajo. Se recorre arriba y abajo con la cámara.
 	# Distancia para que las columnas llenen el ancho de la pantalla (calibrado con capturas)
 	_cam_base = (CAMERA_POS - CAMERA_TARGET).normalized() * ((GameData.COLS + 2.0) / 1.0)
@@ -373,6 +420,7 @@ func _tile_multimesh(size: Vector3, tiles: Array, tex := "") -> MultiMeshInstanc
 	else:
 		var bm := (TowerModels.ArcherModel.M.mat(Color.WHITE) as StandardMaterial3D).duplicate() as StandardMaterial3D
 		bm.vertex_color_use_as_albedo = true
+		bm.vertex_color_is_srgb = true # Forward+: colores de vértice en sRGB
 		bm.roughness = 0.92
 		bm.next_pass = null
 		m = bm
@@ -398,6 +446,11 @@ func _apply_camera() -> void:
 	cam_focus.y = clampf(cam_focus.y, -half_h - 0.5, half_h + 1.5)
 	var target := Vector3(cam_focus.x, 0, cam_focus.y)
 	camera.look_at_from_position(target + _cam_offset * cam_zoom, target, Vector3.UP)
+	if _cam_attr != null:
+		# El foco sigue al punto que se mira (con el zoom)
+		var d := (_cam_offset * cam_zoom).length()
+		_cam_attr.dof_blur_far_distance = d * 1.25
+		_cam_attr.dof_blur_far_transition = d * 0.9
 
 
 ## Botón de girar (R / Q / E): rota la vista del tablero 90° cada vez.
@@ -501,10 +554,15 @@ func _draw() -> void:
 			continue
 		var top := screen_pos(e.position, e.height + e.radius / T * 2.6 + 0.2)
 		var w := clampf(e.radius * 1.3, 28.0, 90.0)
-		var r := Rect2(top - Vector2(w * 0.5, 0), Vector2(w, 6))
-		draw_rect(r.grow(1), Color(0, 0, 0, 0.75))
-		var hc := Color(0.95, 0.25, 0.2) if e.is_boss else (Color(1, 0.4, 0.9) if e.elite else Color(0.35, 0.95, 0.35))
-		draw_rect(Rect2(r.position, Vector2(w * clampf(e.hp / e.max_hp, 0, 1), 6)), hc)
+		var r := Rect2(top - Vector2(w * 0.5, 0), Vector2(w, 8))
+		_hp_back.bg_color = Color(0.05, 0.05, 0.08, 0.85)
+		draw_style_box(_hp_back, r.grow(2))
+		var hc := Color(0.95, 0.25, 0.2) if e.is_boss else (Color(1, 0.4, 0.9) if e.elite else Color(0.35, 0.95, 0.35).lerp(Color(1.0, 0.75, 0.2), 1.0 - clampf(e.hp / e.max_hp, 0, 1)))
+		_hp_fill.bg_color = hc
+		var fw := w * clampf(e.hp / e.max_hp, 0, 1)
+		if fw > 2.0:
+			draw_style_box(_hp_fill, Rect2(r.position, Vector2(fw, 8)))
+			draw_rect(Rect2(r.position + Vector2(2, 1), Vector2(maxf(fw - 4.0, 0.0), 2)), Color(1, 1, 1, 0.35))
 		if e.stun_time > 0.0:
 			draw_circle(top + Vector2(w * 0.5 + 6, 3), 4, Color(1, 1, 0.4))
 		if not e.dots.is_empty():
@@ -690,6 +748,8 @@ func _on_key(k: Key) -> void:
 		KEY_DELETE, KEY_BACKSPACE:
 			if selected != null and not selected.is_hero:
 				_sell_selected()
+		KEY_T:
+			_open_side("shop")
 		KEY_F:
 			_open_fortress()
 		KEY_HOME:
@@ -1467,9 +1527,17 @@ func _build_hud() -> void:
 	var W := GameData.screen().x
 
 	# Sombra suave arriba para que las píldoras se lean sobre el mapa
-	var shade := ColorRect.new()
+	# Barra superior: panel azul noche con filo dorado (se lee bien sobre cualquier mapa)
+	var shade := Panel.new()
 	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	shade.color = Color(0.04, 0.06, 0.14, 0.35)
+	var sst := StyleBoxFlat.new()
+	sst.bg_color = Color(0.07, 0.1, 0.2, 0.86)
+	sst.border_color = UIKit.GOLD.darkened(0.25)
+	sst.border_width_bottom = 3
+	sst.shadow_color = Color(0, 0, 0, 0.35)
+	sst.shadow_size = 10
+	sst.shadow_offset = Vector2(0, 4)
+	shade.add_theme_stylebox_override("panel", sst)
 	shade.size = Vector2(W, TOP_H - 2.0)
 	ui.add_child(shade)
 
@@ -1575,7 +1643,12 @@ func _build_hud() -> void:
 
 	# Barra inferior: Construir / Demoler / habilidad del héroe
 	var bar := PanelContainer.new()
-	var bar_style := UIKit.card_style(Color(UIKit.NAVY, 0.96), UIKit.NAVY_DARK, 0, 3, 8)
+	var bar_style := StyleBoxFlat.new()
+	bar_style.bg_color = Color(0.07, 0.1, 0.2, 0.92)
+	bar_style.border_color = UIKit.GOLD.darkened(0.25)
+	bar_style.border_width_top = 3
+	bar_style.shadow_color = Color(0, 0, 0, 0.4)
+	bar_style.shadow_size = 12
 	bar_style.content_margin_left = 10
 	bar_style.content_margin_right = 10
 	bar_style.content_margin_top = 10
@@ -1595,6 +1668,12 @@ func _build_hud() -> void:
 	UIKit.set_button_content(btn_cards, "cards", "Cartas", 18, 28.0)
 	btn_cards.pressed.connect(func() -> void: _toggle_build_menu("cards"))
 	bar_row.add_child(btn_cards)
+	# Tienda (cofre) al lado de Cartas: los sobres desbloquean torres y héroes nuevos
+	btn_shop = UIKit.button("", UIKit.ORANGE, 19, Vector2(128, 72))
+	UIKit.set_button_content(btn_shop, "chest", "Tienda", 18, 28.0)
+	btn_shop.tooltip_text = "Tienda de sobres (T)"
+	btn_shop.pressed.connect(func() -> void: _open_side("shop"))
+	bar_row.add_child(btn_shop)
 	btn_demolish = UIKit.button("", UIKit.RED, 19, Vector2(128, 72))
 	UIKit.set_button_content(btn_demolish, "hammer", "Demoler", 18, 28.0)
 	btn_demolish.pressed.connect(_toggle_demolish)
@@ -1619,6 +1698,35 @@ func _build_hud() -> void:
 
 	if coop == "" and Coop.role == "":
 		_build_side_col()
+
+	# Minimapa abajo a la derecha (el mapa es alargado: ayuda a moverse por él)
+	var vps := GameData.screen()
+	var mm_h := minf(430.0, vps.y - BAR_H - 400.0)
+	var mm_w := minf(230.0, mm_h * float(GameData.COLS) / float(GameData.ROWS))
+	minimap = Minimap.new()
+	minimap.setup(self, mm_w)
+	minimap.position = Vector2(vps.x - minimap.size.x - 18.0, vps.y - BAR_H - minimap.size.y - 18.0)
+	ui.add_child(minimap)
+
+	# Barra de vida del jefe (arriba, en el centro) cuando hay uno en el campo
+	boss_bar = UIKit.card(Color(0.1, 0.06, 0.08, 0.9), 18)
+	var bbs := boss_bar.get_theme_stylebox("panel").duplicate() as StyleBoxFlat
+	bbs.border_color = Color(0.85, 0.2, 0.15)
+	bbs.set_border_width_all(3)
+	boss_bar.add_theme_stylebox_override("panel", bbs)
+	boss_bar.custom_minimum_size = Vector2(640, 0)
+	boss_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var bbv := UIKit.vbox(4)
+	boss_bar.add_child(bbv)
+	boss_name = UIKit.label("", 22, Color(1.0, 0.85, 0.75), HORIZONTAL_ALIGNMENT_CENTER)
+	boss_name.add_theme_font_override("font", UIKit.font(true))
+	bbv.add_child(boss_name)
+	boss_hp = UIKit.progress(1, 1, Color(0.9, 0.18, 0.15), 22, "")
+	bbv.add_child(boss_hp)
+	boss_bar.visible = false
+	ui.add_child(boss_bar)
+	boss_bar.reset_size()
+	boss_bar.position = Vector2((vps.x - 640.0) * 0.5, TOP_H + 10.0)
 
 	# Panel de información de la torre seleccionada (hoja crema redondeada)
 	info_panel = UIKit.card(UIKit.CREAM, 26)
@@ -2051,6 +2159,18 @@ func _place_build_info() -> void:
 func _refresh_hud() -> void:
 	if lbl_lives == null:
 		return
+	# Jefe en el campo: barra de vida grande arriba
+	var boss: Enemy = null
+	for e in enemies:
+		if is_instance_valid(e) and e.is_boss and not e.dead:
+			boss = e
+			break
+	if boss_bar != null:
+		boss_bar.visible = boss != null
+		if boss != null:
+			boss_name.text = "JEFE: " + str(boss.def["name"])
+			boss_hp.max_value = boss.max_hp
+			boss_hp.value = maxf(boss.hp, 0.0)
 	var t_lives := str(lives)
 	var t_gold := GameData.format_num(gold)
 	if lbl_lives.text != t_lives and lbl_lives.text != "":

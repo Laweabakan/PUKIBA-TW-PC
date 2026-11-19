@@ -95,6 +95,18 @@ static func theme() -> Theme:
 	# Etiquetas y botones sueltos
 	t.set_color("font_color", "Label", Color.WHITE)
 	t.set_font("font", "Button", font(true))
+	# Avisos al pasar el ratón (PC): pergamino con borde dorado
+	var tip := style(Color(0.08, 0.11, 0.22, 0.97), GOLD.darkened(0.2), 12, 2)
+	tip.content_margin_left = 12
+	tip.content_margin_right = 12
+	tip.content_margin_top = 6
+	tip.content_margin_bottom = 8
+	tip.shadow_color = Color(0, 0, 0, 0.4)
+	tip.shadow_size = 6
+	t.set_stylebox("panel", "TooltipPanel", tip)
+	t.set_color("font_color", "TooltipLabel", PARCHMENT)
+	t.set_font_size("font_size", "TooltipLabel", 18)
+	t.set_font("font", "TooltipLabel", font(true))
 	_theme = t
 	return t
 
@@ -161,7 +173,7 @@ static func _btn_style(color: Color, state: String, radius: int) -> StyleBoxFlat
 	var top := 8
 	match state:
 		"hover":
-			bg = color.lightened(0.08)
+			bg = color.lightened(0.16) # PC: el ratón encima se nota bien
 		"pressed":
 			bg = color.darkened(0.06)
 			depth = 3
@@ -225,6 +237,8 @@ static func button(text: String, color: Color = WOOD, font_size := 20, min_size 
 	_btn_shine(b, radius)
 	add_press_bounce(b)
 	b.pressed.connect(func() -> void: Audio.sfx("click", -6.0, 0.05, 0.03))
+	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	add_hover_grow(b)
 	return b
 
 
@@ -836,9 +850,18 @@ class _DragAnywhere extends Node:
 		for c in n.get_children():
 			_fix(c)
 
-	static func _fix_one(n: Node) -> void:
+	static func _fix_one(n) -> void: # sin tipo: puede llegar ya liberado (llamada diferida)
 		if not is_instance_valid(n) or not n is Control or n is ScrollBar or n is LineEdit or n is Slider:
 			return
 		var c := n as Control
 		if c.mouse_filter == Control.MOUSE_FILTER_STOP:
 			c.mouse_filter = Control.MOUSE_FILTER_PASS
+
+
+## PC: al pasar el ratón por encima, el botón crece un poco (y vuelve al salir).
+static func add_hover_grow(b: BaseButton, amount := 1.05) -> void:
+	b.mouse_entered.connect(func() -> void:
+		if not b.disabled:
+			b.pivot_offset = b.size * 0.5
+			_scale_to(b, Vector2(amount, amount), 0.12, Tween.TRANS_QUAD))
+	b.mouse_exited.connect(func() -> void: _scale_to(b, Vector2.ONE, 0.18, Tween.TRANS_QUAD))

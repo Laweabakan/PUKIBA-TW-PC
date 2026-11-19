@@ -184,8 +184,8 @@ func _step_pack() -> void:
 			game._menu_overlay.call_deferred("focus_packs")
 		_arrow.visible = false
 	else:
-		_say("Las torres nuevas salen en los sobres: pulsa la TIENDA (cofre de la derecha).")
-		var holder: Control = game._side_badges.get("shop")
+		_say("Las torres nuevas salen en los sobres: pulsa TIENDA (el cofre, al lado de Cartas).")
+		var holder: Control = game.btn_shop
 		if holder != null:
 			_point_rect(holder.get_global_rect())
 		else:

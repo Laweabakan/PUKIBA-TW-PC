@@ -235,6 +235,7 @@ static func _material(k: int) -> Material:
 		return _mats[k]
 	var m := StandardMaterial3D.new()
 	m.vertex_color_use_as_albedo = true
+	m.vertex_color_is_srgb = true # Forward+: colores de vértice en sRGB
 	m.vertex_color_is_srgb = true
 	match k:
 		CLAY, METAL:

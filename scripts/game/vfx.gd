@@ -286,6 +286,7 @@ static func pmat(texname: String, add := true) -> StandardMaterial3D:
 		return _mats[key]
 	var m := _base_fx_mat(texname, add)
 	m.vertex_color_use_as_albedo = true
+	m.vertex_color_is_srgb = true # Forward+: colores de vértice en sRGB
 	# BILLBOARD_PARTICLES ignora la escala de cada partícula en GL Compatibility (4.3):
 	# BILLBOARD_ENABLED + keep_scale sí la respeta.
 	m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
@@ -300,6 +301,7 @@ static func pmat_mesh_add() -> StandardMaterial3D:
 		return _mats["pmadd"]
 	var m := _base_fx_mat("", true)
 	m.vertex_color_use_as_albedo = true
+	m.vertex_color_is_srgb = true # Forward+: colores de vértice en sRGB
 	_mats["pmadd"] = m
 	return m
 
@@ -311,6 +313,7 @@ static func clay(gloss := false) -> StandardMaterial3D:
 		return _mats[key]
 	var m := StandardMaterial3D.new()
 	m.vertex_color_use_as_albedo = true
+	m.vertex_color_is_srgb = true # Forward+: colores de vértice en sRGB
 	m.roughness = 0.25 if gloss else 1.0
 	if gloss:
 		m.metallic = 0.3
@@ -353,6 +356,7 @@ static func vcol_add(color: Color) -> StandardMaterial3D:
 		return _mats[key]
 	var m := _base_fx_mat("", true)
 	m.vertex_color_use_as_albedo = true
+	m.vertex_color_is_srgb = true # Forward+: colores de vértice en sRGB
 	m.albedo_color = color
 	_mats[key] = m
 	return m
@@ -362,6 +366,7 @@ static func vcol_add(color: Color) -> StandardMaterial3D:
 static func new_lightning_mat() -> StandardMaterial3D:
 	var m := _base_fx_mat("soft", true)
 	m.vertex_color_use_as_albedo = true
+	m.vertex_color_is_srgb = true # Forward+: colores de vértice en sRGB
 	return m
 
 

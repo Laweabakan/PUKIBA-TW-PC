@@ -123,19 +123,11 @@ class LevelCrest extends Control:
 ## Fondo con degradado azul noche y destellos suaves.
 class Backdrop extends Control:
 	func _draw() -> void:
-		var top := Color(0.2, 0.36, 0.55)
-		var bot := Color(0.09, 0.13, 0.27)
+		# Velo semitransparente sobre la maqueta 3D (más oscuro abajo y a la izquierda)
+		var top := Color(0.08, 0.14, 0.26, 0.2)
+		var bot := Color(0.04, 0.06, 0.14, 0.55)
 		draw_polygon(PackedVector2Array([Vector2.ZERO, Vector2(size.x, 0), size, Vector2(0, size.y)]),
 			PackedColorArray([top, top, bot, bot]))
-		var rng := RandomNumberGenerator.new()
-		rng.seed = 7
-		for i in 70:
-			var p := Vector2(rng.randf() * size.x, rng.randf() * size.y)
-			draw_circle(p, rng.randf_range(1.0, 3.0), Color(1, 1, 0.9, rng.randf_range(0.08, 0.3)))
-		for i in 9:
-			var p := Vector2(rng.randf() * size.x, rng.randf() * size.y)
-			draw_circle(p, rng.randf_range(80.0, 220.0), Color(1, 1, 1, 0.025))
-
 
 func _ready() -> void:
 	var vs := GameData.screen()
@@ -150,6 +142,7 @@ func _ready() -> void:
 	SettingsPanel.apply_graphics(get_viewport())
 	CrashReport.call_deferred("show_popup", self)
 	UIKit.apply_theme(self)
+	add_child(MenuDiorama.new()) # maqueta 3D animada de fondo
 	var bg := Backdrop.new()
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -616,8 +609,11 @@ func _reward_icon(r: Dictionary) -> String:
 
 # ================================================================ Mapas (pantalla principal)
 func _tab_maps(v: VBoxContainer) -> void:
-	v.add_child(_map_card(sel_map))
-	v.add_child(_hero_card())
+	# Columna izquierda con el mapa y el héroe; a la derecha se ve la maqueta 3D del castillo
+	for c in [_map_card(sel_map), _hero_card()]:
+		(c as Control).custom_minimum_size.x = 860
+		(c as Control).size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+		v.add_child(c)
 
 
 func _map_card(i: int) -> Control:

@@ -534,6 +534,7 @@ static func _build_terrain(ctx: Dictionary) -> void:
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	var m := StandardMaterial3D.new()
 	m.vertex_color_use_as_albedo = true
+	m.vertex_color_is_srgb = true # Forward+: colores de vértice en sRGB
 	m.roughness = 1.0 # terreno de papel: las facetas las da la malla (caras planas)
 	m.metallic_specular = 0.1
 	var mi := MeshInstance3D.new()
@@ -1270,6 +1271,7 @@ static func _particle_mat(emissive: bool) -> StandardMaterial3D:
 		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 		m.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
 		m.vertex_color_use_as_albedo = true
+		m.vertex_color_is_srgb = true # Forward+: colores de vértice en sRGB
 		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		m.albedo_texture = _soft_tex()
 		if emissive:

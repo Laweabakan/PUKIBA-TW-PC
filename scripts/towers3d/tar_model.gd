@@ -215,6 +215,7 @@ static func _smoke(col: Color, pos: Vector3, amount: int, size: float) -> CPUPar
 	var m := StandardMaterial3D.new()
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	m.vertex_color_use_as_albedo = true
+	m.vertex_color_is_srgb = true # Forward+: colores de vértice en sRGB
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mesh.material = m
 	p.mesh = mesh

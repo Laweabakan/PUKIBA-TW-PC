@@ -33,7 +33,9 @@ void fragment() {
 	float h1 = hash(id);
 	float h2 = hash(id + 17.31);
 	float h3 = hash(id + 5.17);
-	ALBEDO = COLOR.rgb * (1.0 + (h1 - 0.5) * 2.0 * jitter);
+	// Forward+: el color de la instancia viene en sRGB; se pasa a lineal
+	vec3 base = mix(COLOR.rgb / 12.92, pow((COLOR.rgb + 0.055) / 1.055, vec3(2.4)), step(vec3(0.04045), COLOR.rgb));
+	ALBEDO = base * (1.0 + (h1 - 0.5) * 2.0 * jitter);
 	ROUGHNESS = 1.0;
 	SPECULAR = 0.1;
 	if (world_nrm.y > 0.7) {
