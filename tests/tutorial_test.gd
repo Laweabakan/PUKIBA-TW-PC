@@ -56,7 +56,7 @@ func _ready() -> void:
 	game._open_side("shop")
 	await _wait(0.4)
 	await _shot("tut_8_sobre")
-	Meta.claim_free_pack()
+	Meta.buy_packs("tower_bronze", 1)
 	await _wait(0.3)
 	check(Tutorial.step() == Tutorial.DONE, "paso 3: sobre abierto, tutorial terminado")
 	get_tree().paused = false

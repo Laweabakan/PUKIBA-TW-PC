@@ -11,7 +11,7 @@ func _ready() -> void:
 	DirAccess.make_dir_recursive_absolute("user://screens")
 	var menu: Control = load("res://scenes/menu.tscn").instantiate()
 	add_child(menu)
-	for tab in ["daily", "maps", "cards", "shop", "upgrades"]:
+	for tab in ["maps", "cards", "shop", "upgrades"]:
 		menu.show_tab(tab)
 		await _shot("menu_" + tab)
 	menu.queue_free()

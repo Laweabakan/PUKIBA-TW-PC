@@ -6,6 +6,7 @@ extends Node
 ## Cada escenario es una etapa del jugador: nivel de la Forja Real (daño), nivel del resto de
 ## mejoras de la Fortaleza y nivel de las cartas.
 const SCENARIOS := [
+	{"name": "nuevo (solo arqueros)", "map": 0, "dmg": 0, "other": 0, "cards": 0},
 	{"name": "nuevo", "map": 0, "dmg": 0, "other": 0, "cards": 1},
 	{"name": "inicial", "map": 0, "dmg": 15, "other": 5, "cards": 2},
 	{"name": "medio", "map": 0, "dmg": 40, "other": 15, "cards": 3},
@@ -33,7 +34,6 @@ func _ready() -> void:
 			Save.data["upgrades"][id] = mini(lv, int(GameData.UPGRADES[id]["max"]))
 		for id in GameData.all_card_ids():
 			Save.data["cards"][id]["level"] = int(sc["cards"])
-		Save.data["gems"] = 3000
 		var r := await _run(int(sc["map"]))
 		print("Mapa %2d | %s | daño x%.1f | cartas nv %d -> oleada %d" % [int(sc["map"]) + 1, sc["name"], 1.0 + Save.upgrade_value("damage"), int(sc["cards"]), r])
 	Save.reset_all()
@@ -71,7 +71,7 @@ func _run(map_idx: int) -> int:
 	var frames := 0
 	while not game.over and game.last_cleared < 500 and frames < 400000:
 		frames += 1
-		if game.hero.ability_cd <= 0.0 and not game.enemies.is_empty():
+		if game.hero != null and game.hero.ability_cd <= 0.0 and not game.enemies.is_empty():
 			game._use_ability()
 		# Decide: construir si hay casilla y la mejor torre es asequible; si no, mejorar.
 		var id: String = rotation[ri % rotation.size()]

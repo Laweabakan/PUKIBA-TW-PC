@@ -269,16 +269,16 @@ func _build_world() -> void:
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL # 1 pasada de sombra en vez de 4
 	world.add_child(sun)
 	camera = Camera3D.new()
-	camera.keep_aspect = Camera3D.KEEP_HEIGHT # PC (16:9): el alto de la pantalla abarca las columnas
-	camera.fov = 44.0
+	camera.keep_aspect = Camera3D.KEEP_WIDTH # el ancho de la pantalla abarca todas las columnas
+	camera.fov = 62.0 # campo horizontal (pantalla 16:9)
 	world.add_child(camera)
 	camera.current = true
-	# Vista apaisada: el tablero se ve girado (entradas a la izquierda, castillo a la derecha).
-	# Distancia para que las columnas llenen el alto de la pantalla (calibrado con capturas)
-	_cam_base = (CAMERA_POS - CAMERA_TARGET).normalized() * ((GameData.COLS + 3.5) / 0.6)
-	view_rot = 3
-	_cam_offset = _cam_base.rotated(Vector3.UP, view_rot * PI * 0.5)
-	cam_focus = Vector2(-0.8, 0.0) # un poco hacia arriba: abajo están la tienda y la barra
+	# Mapa alargado en vertical: enemigos arriba, castillo abajo. Se recorre arriba y abajo con la cámara.
+	# Distancia para que las columnas llenen el ancho de la pantalla (calibrado con capturas)
+	_cam_base = (CAMERA_POS - CAMERA_TARGET).normalized() * ((GameData.COLS + 2.0) / 1.0)
+	view_rot = 0
+	_cam_offset = _cam_base
+	cam_focus = Vector2(0.0, GameData.ROWS * 0.5 - 3.5) # empieza mirando el castillo (abajo)
 	_apply_camera()
 	# Base del tablero
 	V3.box(Vector3(GameData.COLS + 0.3, 0.6, GameData.ROWS + 0.3), ground.darkened(0.18), Vector3(0, -0.44, 0), 0.0, world)

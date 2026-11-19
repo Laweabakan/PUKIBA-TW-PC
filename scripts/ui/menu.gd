@@ -49,8 +49,8 @@ var sheet_id := ""
 var _last_coins := -1
 
 
-## Vista previa de un mapa (suelo a cuadros, caminos redondeados). En PC se dibuja apaisada,
-## igual que se ve en la batalla: las entradas a la izquierda y el castillo a la derecha.
+## Vista previa de un mapa (suelo a cuadros, caminos redondeados), como se juega:
+## las entradas arriba y el castillo abajo (el mapa es alargado en vertical).
 class MapPreview extends Control:
 	var map_idx := 0
 
@@ -60,8 +60,8 @@ class MapPreview extends Control:
 		var cols := int(info["cols"])
 		var rows := int(info["rows"])
 		# Apaisado: la fila del mapa es la columna en pantalla
-		var s := minf(size.x / float(rows), size.y / float(cols))
-		var o := (size - Vector2(rows, cols) * s) * 0.5
+		var s := minf(size.x / float(cols), size.y / float(rows))
+		var o := (size - Vector2(cols, rows) * s) * 0.5
 		var ground: Color = m["ground"]
 		var bg := StyleBoxFlat.new()
 		bg.bg_color = ground.darkened(0.25)
@@ -70,11 +70,11 @@ class MapPreview extends Control:
 		for x in cols:
 			for y in rows:
 				var col := ground if (x + y) % 2 == 0 else ground.lightened(0.06)
-				draw_rect(Rect2(o + Vector2(y, cols - 1 - x) * s, Vector2(s, s)), col)
+				draw_rect(Rect2(o + Vector2(x, y) * s, Vector2(s, s)), col)
 		for c in info["water"].keys():
 			var cc: Vector2i = c
 			if cc.x >= 0 and cc.y >= 0 and cc.x < cols and cc.y < rows:
-				draw_rect(Rect2(o + Vector2(cc.y, cols - 1 - cc.x) * s, Vector2(s, s)), Color(0.3, 0.55, 0.85))
+				draw_rect(Rect2(o + Vector2(cc.x, cc.y) * s, Vector2(s, s)), Color(0.3, 0.55, 0.85))
 		var path_col: Color = m["path"]
 		var w := s * 0.72
 		for pts in info["paths"]:
@@ -91,7 +91,7 @@ class MapPreview extends Control:
 	func _pt(c: Vector2i, o: Vector2, s: float, cols: int) -> Vector2:
 		var cx := clampf(float(c.x), -0.4, cols - 0.6)
 		var cy := clampf(float(c.y), -0.6, float(MapGen.generate(map_idx)["rows"]) - 0.4)
-		return o + (Vector2(cy, cols - 1 - cx) + Vector2(0.5, 0.5)) * s
+		return o + (Vector2(cx, cy) + Vector2(0.5, 0.5)) * s
 
 
 ## Escudo de nivel de cuenta con anillo de experiencia.

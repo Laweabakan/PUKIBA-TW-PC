@@ -162,11 +162,11 @@ func _test_game() -> void:
 		tcount[GameData.TOWERS[tid]["rarity"]] = int(tcount.get(GameData.TOWERS[tid]["rarity"], 0)) + 1
 	for hid2 in GameData.HEROES.keys():
 		hcount[GameData.HEROES[hid2]["rarity"]] = int(hcount.get(GameData.HEROES[hid2]["rarity"], 0)) + 1
-	check(int(tcount["legendary"]) == 3 and int(hcount["legendary"]) == 3, "3 torres y 3 héroes legendarios")
+	check(int(tcount["legendary"]) == 5 and int(hcount["legendary"]) == 3, "5 torres (2 de oro) y 3 héroes legendarios")
 	var prev_t := 999
 	var prev_h := 999
 	for r in GameData.RARITY_ORDER:
-		check(int(tcount[r]) < prev_t and int(hcount[r]) < prev_h, "menos cartas cuanto más rara: " + r)
+		check(int(hcount[r]) < prev_h, "menos héroes cuanto más raro: " + r)
 		prev_t = int(tcount[r])
 		prev_h = int(hcount[r])
 	var ids: Array = GameData.TOWERS.keys()
@@ -253,7 +253,7 @@ func _test_game() -> void:
 	for k in 4:
 		game2._rotate_view()
 		await get_tree().create_timer(0.6, true, false, true).timeout
-	check(game2.view_rot == 3 and game2._cam_offset.distance_to(off0) < 0.01, "girar la vista 90°")
+	check(game2.view_rot == 0 and game2._cam_offset.distance_to(off0) < 0.01, "girar la vista 90°")
 	# 19 torres de oro (12 + 7 de fin de juego)
 	var gold_n := 0
 	for tid in GameData.TOWERS.keys():

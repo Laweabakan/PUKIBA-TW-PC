@@ -19,12 +19,13 @@ extends RefCounted
 
 const VERSION := 3 # cambiar si se altera la generación (invalida partidas guardadas)
 
-## Disposición de cada mapa (versión de PC): tableros más grandes que en el móvil, con más
+## Disposición de cada mapa (versión de PC): tablero ancho (ocupa toda la pantalla horizontal) y
+## alargado en vertical: los enemigos entran por arriba y el castillo está abajo. Más grandes que en el móvil, con más
 ## entradas (más caminos) y cada mapa algo más grande y complejo que el anterior.
 static func layout(map_idx: int) -> Dictionary:
 	var i := clampi(map_idx, 0, 19)
-	var cols := 13 + i / 4                     # 13 -> 17 columnas (alto de la pantalla)
-	var rows := 24 + int(i * 0.6)              # 24 -> 35 filas (ancho de la pantalla)
+	var cols := 20 + i / 3                     # 20 -> 26 columnas: llenan el ancho de la pantalla
+	var rows := 32 + i                         # 32 -> 51 filas: el mapa es alargado en vertical (se recorre con la cámara)
 	var entries := 2 if i < 3 else (3 if i < 10 else 4)
 	var water := "river" if i % 2 == 0 else "lake"
 	if i >= 12:
