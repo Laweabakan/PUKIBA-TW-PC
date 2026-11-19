@@ -44,15 +44,15 @@ func card_cap() -> int:
 	return GameData.MAX_CARD_LEVEL
 
 
-func card_upgrade_cost(level: int) -> int:
-	return 150 * level * level
+## PC: subir una carta de nivel solo pide copias (sin oro).
+func card_upgrade_cost(_level: int) -> int:
+	return 0
 
 
 func can_level_card(id: String) -> bool:
 	var c := Save.card(id)
 	var lvl := int(c["level"])
-	return lvl > 0 and lvl < card_cap() \
-		and int(c["copies"]) >= copies_needed(lvl) and Save.coins() >= card_upgrade_cost(lvl)
+	return lvl > 0 and lvl < card_cap() and int(c["copies"]) >= copies_needed(lvl)
 
 
 func level_card(id: String) -> bool:
@@ -60,16 +60,29 @@ func level_card(id: String) -> bool:
 		return false
 	var c: Dictionary = Save.data["cards"][id]
 	var lvl := int(c["level"])
-	if not Save.spend_coins(card_upgrade_cost(lvl)):
-		return false
 	c["copies"] = int(c["copies"]) - copies_needed(lvl)
 	c["level"] = lvl + 1
 	Save.save_game()
 	return true
 
 
-## Multiplicador de poder que da el nivel de la carta (x1.35 por nivel sobre el 1; máximo nivel 5).
+## Sube la carta todos los niveles que permitan sus copias (se llama al recibir cartas).
+func auto_level(id: String) -> int:
+	var ups := 0
+	while can_level_card(id):
+		var c: Dictionary = Save.data["cards"][id]
+		var lvl := int(c["level"])
+		c["copies"] = int(c["copies"]) - copies_needed(lvl)
+		c["level"] = lvl + 1
+		ups += 1
+	return ups
+
+
+## Multiplicador de poder del nivel de carta (x1.35 por nivel sobre el 1). Las torres de oro no lo
+## usan: su carta les da directamente el nivel de torre en la partida (CARD_TO_TOWER_LEVEL).
 func card_power(id: String) -> float:
+	if is_progress_tower(id):
+		return 1.0
 	return pow(1.35, maxi(Save.card_level(id) - 1, 0))
 
 
@@ -102,6 +115,7 @@ func add_card(id: String) -> bool:
 		Save.data["coins"] = Save.coins() + int(GameData.DUPLICATE_COINS.get(rar, 300))
 	else:
 		c["copies"] = int(c["copies"]) + 1
+		auto_level(id) # con las copias justas, la carta (y la torre) sube de nivel sola
 	return false
 
 
@@ -338,30 +352,15 @@ func pity_left(rarity: String) -> int:
 	return cap - int(Save.data.get("pity", {}).get(rarity, 0))
 
 
-# ================================================================ Entrenamiento de torres (Fortaleza, oro)
-func tower_train_cost(id: String) -> int:
-	var r: String = GameData.TOWERS[id]["rarity"]
-	var mult := float(GameData.TOWER_TRAIN_RARITY_MULT.get(r, 1.0))
-	return int(round(GameData.TOWER_TRAIN_BASE_GEMS * mult * pow(GameData.TOWER_TRAIN_GROWTH, Save.tower_train_level(id)))) * GameData.GEM_GOLD
-
-
-func buy_tower_train(id: String) -> bool:
-	if Save.tower_train_level(id) >= GameData.TOWER_TRAIN_MAX:
-		return false
-	if not Save.spend_coins(tower_train_cost(id)):
-		return false
-	if not Save.data.has("tower_train"):
-		Save.data["tower_train"] = {}
-	Save.data["tower_train"][id] = Save.tower_train_level(id) + 1
-	Save.save_game()
-	return true
-
-
-## Nivel con el que se construye una torre (entrenamiento + Arquitectos Arcanos), hasta la Maestría.
+# ================================================================ Nivel de las torres
+## Nivel con el que se construye una torre de oro: lo marca su carta (solo sube con cartas).
 func tower_start_level(id: String) -> int:
 	if not is_progress_tower(id):
-		return 0 # las torres de cartas no usan niveles de partida
-	return mini(Save.tower_train_level(id) + int(Save.gem_upgrade_value("g_start_level")), GameData.MAX_TOWER_LEVEL)
+		return 0 # las torres de cartas usan directamente su nivel de carta
+	var cl := clampi(Save.card_level(id), 0, GameData.CARD_TO_TOWER_LEVEL.size() - 1)
+	if id == GameData.STARTER_TOWER:
+		cl = maxi(cl, 1)
+	return int(GameData.CARD_TO_TOWER_LEVEL[cl])
 
 
 # ================================================================ Fortaleza: mejoras especiales (oro)
@@ -386,20 +385,10 @@ func buy_gem_upgrade(id: String) -> bool:
 	return true
 
 
-# ================================================================ Héroes: nivel permanente con oro
-func hero_level_cost(id: String) -> int:
-	return int(round(GameData.HERO_LEVEL_BASE_GEMS * pow(GameData.HERO_LEVEL_GROWTH, Save.hero_level(id)))) * GameData.GEM_GOLD
+# ================================================================ Héroes: el nivel lo marca su carta
+func can_level_hero(_id: String) -> bool:
+	return false # PC: los héroes, como las torres, solo suben de nivel con cartas
 
 
-func can_level_hero(id: String) -> bool:
-	return Save.owns(id) and Save.hero_level(id) < GameData.HERO_MAX_LEVEL and Save.coins() >= hero_level_cost(id)
-
-
-func level_hero(id: String) -> bool:
-	if not can_level_hero(id) or not Save.spend_coins(hero_level_cost(id)):
-		return false
-	if not Save.data.has("hero_levels"):
-		Save.data["hero_levels"] = {}
-	Save.data["hero_levels"][id] = Save.hero_level(id) + 1
-	Save.save_game()
-	return true
+func level_hero(_id: String) -> bool:
+	return false

@@ -1,7 +1,7 @@
 class_name Tutorial
 extends CanvasLayer
 ## Tutorial básico de la primera partida, sobre el propio juego (sin bloquear nada):
-##   1) colocar una torre (Construir → elegir torre → tocar casilla → tocar otra vez),
+##   1) colocar una torre (Torres → elegir torre → tocar casilla → tocar otra vez),
 ##   2) comprar una mejora en La Fortaleza (tocando el castillo),
 ##   3) comprar y abrir un sobre de torres con oro en la Tienda.
 ## Una flecha que rebota señala dónde tocar y un globo explica qué hacer.
@@ -94,8 +94,8 @@ func _step_build() -> void:
 	if built:
 		_advance("¡Bien hecho! Tu primera torre ya defiende el camino.")
 		return
-	if not game.shop_panel.visible:
-		_say("Pulsa CONSTRUIR (o la tecla B) para ver tus torres.")
+	if not game.shop_panel.visible or game.shop_mode != "progress":
+		_say("Pulsa TORRES (o la tecla B) para ver tus torres.")
 		_point_rect(game.btn_build.get_global_rect())
 	elif game.build_id == "":
 		_say("Elige la Torre de Arqueros.")

@@ -33,7 +33,7 @@ static func open(parent: Control, in_battle := false, on_reset := Callable()) ->
 
 	# ---- Ayuda: reportar errores por correo al equipo
 	v.add_child(_section("Ayuda"))
-	v.add_child(UIKit.ink("Atajos: Espacio = siguiente oleada · 1/2/3 = velocidad · R = girar vista · Q/E = girar\nRueda = zoom · Clic derecho o WASD = mover la cámara · Esc = pausa · F11 = pantalla completa", 16, UIKit.INK))
+	v.add_child(UIKit.ink("Atajos: Espacio = siguiente oleada · 1/2/3 = velocidad · B = torres · H = héroes · T = tienda · X = demoler · R, Q/E = girar\nRueda = zoom · Clic derecho o WASD = mover la cámara · Esc = pausa · F11 = pantalla completa", 16, UIKit.INK))
 	var bug := UIKit.button("", UIKit.BLUE, 18, Vector2(0, 60))
 	UIKit.set_button_content(bug, "quest", "Reportar un error", 19, 30)
 	bug.mouse_filter = Control.MOUSE_FILTER_PASS

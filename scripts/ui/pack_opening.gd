@@ -133,9 +133,14 @@ static func play(parent: Node, results: Array, pack_id: String, on_close: Callab
 			if state["phase"] == 0:
 				open.call())
 	# Si no se toca, se abre solo tras un momento
-	root.get_tree().create_timer(1.6, true, false, true).timeout.connect(func() -> void:
-		if is_instance_valid(root):
-			open.call())
+	# (el temporizador es hijo de la ventana: si se cierra antes, desaparece con ella)
+	var auto := Timer.new()
+	auto.one_shot = true
+	auto.wait_time = 1.6
+	auto.process_mode = Node.PROCESS_MODE_ALWAYS
+	auto.timeout.connect(open)
+	root.add_child(auto)
+	auto.start()
 
 
 static func _deal_cards(root: Control, results: Array, best: int, on_close: Callable, state: Dictionary) -> void:

@@ -666,7 +666,7 @@ const BASE_MAPS := [
 
 # ---------------------------------------------------------------- Mejoras globales (permanentes)
 const UPGRADES := {
-	"damage": {"name": "Forja Real", "desc": "x1.06 daño de todas las torres (acumulativo)", "per_level": 0.06, "max": 300, "base_cost": 100,
+	"damage": {"name": "Forja Real", "desc": "x1.06 daño de todas las torres (acumulativo)", "per_level": 0.06, "max": 120, "base_cost": 100,
 		"growth": 1.13, "mult": true, "cap_base": 10, "cap_per_map": 8},
 	"range": {"name": "Atalayas", "desc": "+2% alcance de las torres", "per_level": 0.02, "max": 20, "base_cost": 150, "cap_base": 3, "cap_per_map": 1},
 	"speed": {"name": "Entrenamiento", "desc": "+2% velocidad de ataque", "per_level": 0.02, "max": 40, "base_cost": 150, "cap_base": 4, "cap_per_map": 2},
@@ -675,7 +675,7 @@ const UPGRADES := {
 	"gold_kill": {"name": "Botín de Guerra", "desc": "+4% oro por enemigo", "per_level": 0.04, "max": 50, "base_cost": 120},
 	"crit": {"name": "Ojo de Halcón", "desc": "+1% probabilidad de crítico (x2)", "per_level": 0.01, "max": 25, "base_cost": 200},
 	"discount": {"name": "Gremio de Albañiles", "desc": "-1% coste de torres y mejoras", "per_level": 0.01, "max": 25, "base_cost": 180},
-	"hero": {"name": "Leyendas", "desc": "x1.05 poder de héroes (acumulativo)", "per_level": 0.05, "max": 200, "base_cost": 200,
+	"hero": {"name": "Leyendas", "desc": "x1.05 poder de héroes (acumulativo)", "per_level": 0.05, "max": 120, "base_cost": 200,
 		"growth": 1.13, "mult": true, "cap_base": 5, "cap_per_map": 6},
 	"coins": {"name": "Tesorería", "desc": "+5% oro ganado", "per_level": 0.05, "max": 60, "base_cost": 250, "cap_base": 5, "cap_per_map": 3},
 }
@@ -683,7 +683,11 @@ const UPGRADE_COST_GROWTH := 1.22
 ## Con el oro único (el de la batalla llega directo al bolsillo) las mejoras de oro cuestan el triple.
 const UPGRADE_COST_MULT := 3.0
 ## Copias para pasar del nivel N al N+1 (índice N-1). Nivel 1 = obtener la carta.
-const CARD_COPIES := [5, 15, 40, 100]
+const CARD_COPIES := [3, 6, 12, 20] # PC: el nivel de las torres solo sube con cartas
+## Nivel de las torres de oro en la partida según el nivel de su carta (0..5): la carta al 5 da la Maestría.
+const CARD_TO_TOWER_LEVEL := [0, 0, 4, 8, 12, 15]
+## Nivel de los héroes según el nivel de su carta (0..5): también suben solo con cartas.
+const CARD_TO_HERO_LEVEL := [0, 0, 3, 5, 8, 10]
 
 # ---------------------------------------------------------------- Sobres de cartas (se compran con oro)
 ## Versión de PC: no hay gemas ni anuncios. Los sobres se compran con el oro de las partidas y son
@@ -1078,7 +1082,6 @@ const DUPLICATE_COINS := {"common": 300, "uncommon": 600, "rare": 1200, "epic": 
 ## Permanentes para todos los mapas; cada nivel cuesta GEM_UPGRADE_GROWTH veces más que el anterior.
 const GEM_UPGRADES := {
 	"g_damage": {"name": "Bendición Real", "desc": "x1.08 daño de todas las torres (acumulativo)", "per_level": 0.08, "max": 15, "base_gems": 40, "mult": true, "icon": "sword"},
-	"g_start_level": {"name": "Arquitectos Arcanos", "desc": "Las torres se construyen con +1 nivel por mejora", "per_level": 1.0, "max": 15, "base_gems": 80, "growth": 1.25, "icon": "castle"},
 	"g_hero_cd": {"name": "Cronomante", "desc": "-6% recarga de la habilidad del héroe", "per_level": 0.06, "max": 8, "base_gems": 60, "icon": "hero"},
 	"g_coins": {"name": "Cofre Real", "desc": "+10% oro ganado", "per_level": 0.1, "max": 10, "base_gems": 50, "icon": "coin_bag"},
 	"g_lives": {"name": "Bastión Encantado", "desc": "+15 de vida de la fortaleza", "per_level": 15.0, "max": 6, "base_gems": 45, "icon": "heart"},

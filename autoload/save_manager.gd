@@ -164,7 +164,8 @@ func set_run(map_idx: int, run: Dictionary) -> void:
 
 # ---------------------------------------------------------------- Mejoras y cartas
 func hero_level(id: String) -> int:
-	return int(data.get("hero_levels", {}).get(id, 0))
+	# PC: el nivel del héroe lo marca su carta (sube juntando copias en los sobres)
+	return int(GameData.CARD_TO_HERO_LEVEL[clampi(card_level(id), 0, GameData.CARD_TO_HERO_LEVEL.size() - 1)])
 
 ## Nivel inicial permanente de una torre (Entrenamiento de la Fortaleza).
 func tower_train_level(id: String) -> int:

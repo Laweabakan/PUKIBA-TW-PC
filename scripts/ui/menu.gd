@@ -810,7 +810,6 @@ func _tab_upgrades(v: VBoxContainer) -> void:
 			row.add_child(b)
 		v.add_child(p)
 	_gem_upgrades_section(v)
-	_tower_train_section(v)
 
 
 ## Mejoras especiales (al final de la pestaña Fortaleza): más caras y más potentes.
@@ -845,53 +844,6 @@ func _gem_upgrades_section(v: VBoxContainer) -> void:
 			var cost := Meta.gem_upgrade_cost(id)
 			var b := _ibtn("coin", GameData.format_num(cost), UIKit.GREEN if Save.coins() >= cost else UIKit.RED, 21, Vector2(170, 68), func() -> void:
 				if Meta.buy_gem_upgrade(id):
-					show_tab("upgrades")
-				else:
-					_not_enough_coins(), 28)
-			b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-			row.add_child(b)
-		v.add_child(p)
-
-
-## Entrenamiento de torres con oro: cada torre empieza en un nivel más alto en todos los mapas.
-func _tower_train_section(v: VBoxContainer) -> void:
-	_section(v, "Entrenamiento de torres", "upgrade", false)
-	v.add_child(UIKit.label("Sube con gemas el nivel con el que se construye cada torre de oro (en todos los mapas).\nLas torres de cartas suben juntando cartas.", 16, UIKit.PARCHMENT, HORIZONTAL_ALIGNMENT_CENTER))
-	var ids: Array = GameData.TOWERS.keys().filter(func(tid): return Meta.is_progress_tower(tid))
-	ids.sort_custom(func(a, b) -> bool: return Meta.tower_available(a) and not Meta.tower_available(b))
-	for id in ids:
-		var def: Dictionary = GameData.TOWERS[id]
-		var avail := Meta.tower_available(id)
-		var lvl := Save.tower_train_level(id)
-		var maxl := GameData.TOWER_TRAIN_MAX
-		var p := UIKit.card(Color(0.95, 0.9, 1.0))
-		p.mouse_filter = Control.MOUSE_FILTER_PASS
-		var row := UIKit.hbox(12)
-		p.add_child(row)
-		var icon := CardIcon.new()
-		icon.card_id = id
-		icon.level = 2
-		icon.lit = avail
-		icon.custom_minimum_size = Vector2(80, 70)
-		icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		row.add_child(icon)
-		var info := UIKit.vbox(4)
-		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		var t := UIKit.hbox(8)
-		t.add_child(UIKit.ink(def["name"], 19, UIKit.INK, HORIZONTAL_ALIGNMENT_LEFT, true))
-		t.add_child(UIKit.ink("Nv. %d/%d" % [lvl, maxl], 16, UIKit.PURPLE.darkened(0.2), HORIZONTAL_ALIGNMENT_LEFT, true))
-		info.add_child(t)
-		info.add_child(UIKit.ink("Se construye en nivel %d" % Meta.tower_start_level(id) if avail else (Meta.unlock_text(id) if Meta.is_progress_tower(id) else "Consíguela en los sobres"), 15, UIKit.INK_SOFT))
-		info.add_child(UIKit.progress(lvl, maxl, UIKit.PURPLE, 12))
-		row.add_child(info)
-		if lvl >= maxl:
-			var mx := UIKit.ribbon("MÁX", UIKit.PURPLE, 20)
-			mx.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-			row.add_child(mx)
-		elif avail:
-			var cost := Meta.tower_train_cost(id)
-			var b := _ibtn("coin", GameData.format_num(cost), UIKit.GREEN if Save.coins() >= cost else UIKit.RED, 21, Vector2(170, 68), func() -> void:
-				if Meta.buy_tower_train(id):
 					show_tab("upgrades")
 				else:
 					_not_enough_coins(), 28)
@@ -994,7 +946,7 @@ func _collection_view(v: VBoxContainer, on_light: bool) -> void:
 		var rc: Color = GameData.RARITIES[r]["color"]
 		rar_row.add_child(UIKit.pill("star", "%d/%d" % [have, tot], 15, rc.lightened(0.3), 0, Color(0.05, 0.08, 0.18, 0.75)))
 	v.add_child(rar_row)
-	v.add_child(_wrap(UIKit.ink("Toca una carta para ver sus datos, subirla de nivel o elegir tu héroe. Las copias de los sobres suben su nivel (+10% de poder por nivel).", 16, txt_col, HORIZONTAL_ALIGNMENT_CENTER) if on_light else UIKit.label("Toca una carta para ver sus datos, subirla de nivel o elegir tu héroe. Las copias de los sobres suben su nivel (+10% de poder por nivel).", 16, txt_col, HORIZONTAL_ALIGNMENT_CENTER), 1000))
+	v.add_child(_wrap(UIKit.ink("Haz clic en una carta para ver sus datos o elegir tu héroe. Las torres solo suben de nivel con cartas: al juntar las copias necesarias en los sobres, la carta sube de nivel sola.", 16, txt_col, HORIZONTAL_ALIGNMENT_CENTER) if on_light else UIKit.label("Haz clic en una carta para ver sus datos o elegir tu héroe. Las torres solo suben de nivel con cartas: al juntar las copias necesarias en los sobres, la carta sube de nivel sola.", 16, txt_col, HORIZONTAL_ALIGNMENT_CENTER), 1000))
 	# Filtros
 	var filters := UIKit.hbox(8)
 	filters.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -1098,30 +1050,14 @@ func _card_detail(id: String) -> void:
 		info.add_child(stats)
 		info.add_child(UIKit.ink("Daño: " + GameData.DAMAGE_TYPES[def["dmg_type"]]["name"], 15, UIKit.INK_SOFT))
 	if lvl > 0:
-		v.add_child(UIKit.ink("Nivel de carta %d/%d  ·  Poder +%d%%" % [lvl, GameData.MAX_CARD_LEVEL, int(round((Meta.card_power(id) - 1.0) * 100))], 18, UIKit.INK, HORIZONTAL_ALIGNMENT_CENTER, true))
+		var lvl_txt := ("Nivel de carta %d/%d  ·  la torre se construye en nivel %d/%d" % [lvl, GameData.MAX_CARD_LEVEL, Meta.tower_start_level(id), GameData.MAX_TOWER_LEVEL]) if Meta.is_progress_tower(id) else (("Nivel de carta %d/%d  ·  héroe nivel %d/%d" % [lvl, GameData.MAX_CARD_LEVEL, Save.hero_level(id), GameData.HERO_MAX_LEVEL]) if GameData.is_hero(id) else "Nivel de carta %d/%d  ·  Poder +%d%%" % [lvl, GameData.MAX_CARD_LEVEL, int(round((Meta.card_power(id) - 1.0) * 100))])
+		v.add_child(UIKit.ink(lvl_txt, 18, UIKit.INK, HORIZONTAL_ALIGNMENT_CENTER, true))
 		if lvl < GameData.MAX_CARD_LEVEL:
 			var need := Meta.copies_needed(lvl)
 			v.add_child(UIKit.progress(mini(int(c["copies"]), need), need, UIKit.GREEN, 26, "Copias %d / %d" % [int(c["copies"]), need]))
 	else:
 		v.add_child(UIKit.icon_label("lock", "Bloqueada: consíguela en sobres.", 18, UIKit.INK, 26, true))
 	var buttons: Array = []
-	if lvl > 0 and lvl < GameData.MAX_CARD_LEVEL:
-		var cost := Meta.card_upgrade_cost(lvl)
-		buttons.append(["Subir nivel\n%s oro" % GameData.format_num(cost), func() -> void:
-			if Meta.level_card(id):
-				UIKit.toast(self, "¡%s sube a nivel %d!" % [def["name"], lvl + 1])
-				_refresh_cards_view()
-			else:
-				UIKit.message(self, "No es posible", "Necesitas %d copias y %s oro." % [Meta.copies_needed(lvl), GameData.format_num(cost)]), UIKit.GREEN])
-	if GameData.is_hero(id) and lvl > 0 and Save.hero_level(id) < GameData.HERO_MAX_LEVEL:
-		var hc := Meta.hero_level_cost(id)
-		buttons.append(["Nivel de héroe %d → %d
-%s oro" % [Save.hero_level(id), Save.hero_level(id) + 1, GameData.format_num(hc)], func() -> void:
-			if Meta.level_hero(id):
-				UIKit.toast(self, "¡%s sube a nivel %d!" % [def["name"], Save.hero_level(id)], UIKit.GOLD)
-				_refresh_cards_view()
-			else:
-				_not_enough_coins(), UIKit.GOLD])
 	if GameData.is_hero(id) and lvl > 0 and Save.data["selected_hero"] != id:
 		buttons.append(["Elegir héroe", func() -> void:
 			Save.data["selected_hero"] = id

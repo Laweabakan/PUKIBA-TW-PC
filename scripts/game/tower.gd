@@ -97,21 +97,15 @@ func rate() -> float:
 
 func upgrade_cost() -> int:
 	if is_hero:
-		return -1 if level >= GameData.HERO_MAX_LEVEL else 0 # los héroes suben con gemas
-	if is_card or level >= GameData.MAX_TOWER_LEVEL:
-		return -1 # las torres de cartas suben juntando cartas, no con oro
-	var base := 120 if is_hero else int(def["cost"])
-	var c := int(base * (0.7 + 0.36 * level)) # el doble que antes: el oro es uno solo y sobra
-	if level == GameData.MAX_TOWER_LEVEL - 1:
-		c *= 3 # la Maestría (nivel 15) ya no pide gemas, pero cuesta el triple de oro
-	return game.discounted(c)
+		return -1 # los héroes también suben solo con cartas
+	return -1 # PC: las torres solo suben de nivel con cartas (nunca con oro en la partida)
 
 
 ## Gemas necesarias para la siguiente mejora: solo los héroes (nivel permanente).
 ## Las torres llegan a la Maestría (nivel 15) solo con oro.
 func upgrade_gem_cost() -> int:
 	if is_hero:
-		return Meta.hero_level_cost(id) if level < GameData.HERO_MAX_LEVEL else 0
+		return 0
 	return 0
 
 

@@ -130,8 +130,9 @@ var info_panel: PanelContainer
 var build_info: PanelContainer # ficha de la torre o héroe elegido para construir
 var shop_panel: PanelContainer
 var btn_build: Button
-var btn_cards: Button
+
 var btn_shop: Button
+var btn_heroes: Button
 var minimap: Minimap
 var boss_bar: PanelContainer
 var boss_name: Label
@@ -161,7 +162,7 @@ func _ready() -> void:
 	elif run.is_empty():
 		_ensure_min_gold()
 		lives = GameData.START_LIVES + int(Save.upgrade_value("lives")) + int(Save.gem_upgrade_value("g_lives"))
-		UIKit.toast(ui, "Coloca a tus héroes (botón Cartas, hasta %d) y construye torres" % MAX_HEROES if Save.owns(Save.data["selected_hero"]) else "Pulsa Construir y defiende el castillo", UIKit.PARCHMENT)
+		UIKit.toast(ui, "Pulsa Torres para construir y Héroes para colocar a tus héroes (hasta %d)" % MAX_HEROES if Save.owns(Save.data["selected_hero"]) else "Pulsa Torres para construir y defiende el castillo", UIKit.PARCHMENT)
 	else:
 		_load_run(run)
 	_rebuild_shop()
@@ -736,10 +737,10 @@ func _on_key(k: Key) -> void:
 			_rotate_view(-1)
 		KEY_V:
 			show_all_ranges = not show_all_ranges
+		KEY_H:
+			_toggle_build_menu("heroes")
 		KEY_B:
 			_toggle_build_menu("progress")
-		KEY_C:
-			_toggle_build_menu("cards")
 		KEY_X:
 			_toggle_demolish()
 		KEY_U:
@@ -841,7 +842,12 @@ func _on_tap(screen: Vector2) -> void:
 
 # ================================================================ Construcción
 func tower_cost(id: String) -> int:
-	return discounted(int(GameData.TOWERS[id]["cost"]))
+	# Cada torre repetida del mismo tipo cuesta un 25% más (no compensa llenar el mapa de la misma)
+	var same := 0
+	for t in towers.values():
+		if is_instance_valid(t) and not t.is_hero and t.id == id and (coop == "" or int(t.get_meta("side", 0)) == my_side):
+			same += 1
+	return discounted(int(round(float(GameData.TOWERS[id]["cost"]) * (1.0 + REPEAT_COST * same))))
 
 
 func discounted(n: int) -> int:
@@ -905,7 +911,7 @@ func _try_build(id: String, c: Vector2i) -> void:
 			return
 		gold -= cost
 		t.setup(self, id, c)
-		t.level = Meta.tower_start_level(id) # Entrenamiento + Arquitectos Arcanos
+		t.level = Meta.tower_start_level(id) # el nivel lo marca su carta
 		t.spent = cost
 		Meta.track("build", 1)
 	add_child(t)
@@ -944,7 +950,7 @@ func _upgrade_selected() -> void:
 		if t.level >= GameData.HERO_MAX_LEVEL:
 			return
 		if not Meta.level_hero(t.id):
-			UIKit.toast(ui, "Necesitas %s de oro" % GameData.format_num(Meta.hero_level_cost(t.id)), UIKit.RED)
+			UIKit.toast(ui, "Los héroes suben de nivel con cartas de los sobres", UIKit.PARCHMENT)
 			return
 		t.level = Save.hero_level(t.id)
 		spawn_fx("levelup", t.position, T * 0.7, UIKit.GOLD, 1.2)
@@ -1482,7 +1488,7 @@ func _load_run(run: Dictionary) -> void:
 			continue
 		var t := Tower.new()
 		t.setup(self, d["id"], cell)
-		t.level = int(d["level"])
+		t.level = Meta.tower_start_level(t.id) # el nivel lo marca la carta
 		t.spent = int(d["spent"])
 		t.target_mode = d.get("mode", "first")
 		add_child(t)
@@ -1660,15 +1666,16 @@ func _build_hud() -> void:
 	var bar_row := UIKit.hbox(10)
 	bar.add_child(bar_row)
 	btn_build = UIKit.button("", UIKit.GREEN, 19, Vector2(150, 72))
-	UIKit.set_button_content(btn_build, "castle", "Construir", 18, 28.0)
+	UIKit.set_button_content(btn_build, "castle", "Torres", 18, 28.0)
+	btn_build.tooltip_text = "Torres (B)"
 	btn_build.pressed.connect(func() -> void: _toggle_build_menu("progress"))
 	bar_row.add_child(btn_build)
-	# Segundo menú: torres y héroes que se ganan en sobres
-	btn_cards = UIKit.button("", UIKit.PURPLE, 19, Vector2(128, 72))
-	UIKit.set_button_content(btn_cards, "cards", "Cartas", 18, 28.0)
-	btn_cards.pressed.connect(func() -> void: _toggle_build_menu("cards"))
-	bar_row.add_child(btn_cards)
-	# Tienda (cofre) al lado de Cartas: los sobres desbloquean torres y héroes nuevos
+	btn_heroes = UIKit.button("", UIKit.PURPLE, 19, Vector2(140, 72))
+	UIKit.set_button_content(btn_heroes, "crown", "Héroes", 18, 28.0)
+	btn_heroes.tooltip_text = "Héroes (H)"
+	btn_heroes.pressed.connect(func() -> void: _toggle_build_menu("heroes"))
+	bar_row.add_child(btn_heroes)
+	# Tienda (cofre): los sobres desbloquean torres y héroes nuevos
 	btn_shop = UIKit.button("", UIKit.ORANGE, 19, Vector2(128, 72))
 	UIKit.set_button_content(btn_shop, "chest", "Tienda", 18, 28.0)
 	btn_shop.tooltip_text = "Tienda de sobres (T)"
@@ -1817,6 +1824,7 @@ func _open_side(id: String) -> void:
 		layer.queue_free()
 		get_tree().paused = was_paused
 		_rebuild_shop() # las cartas nuevas de los sobres ya se pueden usar
+		_sync_card_levels() # las cartas que subieron de nivel suben sus torres
 		_refresh_side_badges()
 		_refresh_hud())
 	m.call("open_side", id)
@@ -1843,8 +1851,9 @@ func _toggle_build_menu(mode := "progress") -> void:
 
 
 func _update_build_buttons() -> void:
+	UIKit.set_button_color(btn_heroes, UIKit.GOLD if shop_panel.visible and shop_mode == "heroes" else UIKit.PURPLE)
 	UIKit.set_button_color(btn_build, UIKit.GOLD if shop_panel.visible and shop_mode == "progress" else UIKit.GREEN)
-	UIKit.set_button_color(btn_cards, UIKit.GOLD if shop_panel.visible and shop_mode == "cards" else UIKit.PURPLE)
+
 
 
 ## Botón Demoler: en este modo, tocar una torre la derriba y devuelve parte del oro.
@@ -1856,6 +1865,7 @@ func _toggle_demolish() -> void:
 
 ## Árboles y rocas del tablero: se pueden quitar por oro para construir en su casilla.
 const CLEAR_COST := 50
+const REPEAT_COST := 0.25 # +25% por cada torre igual ya construida
 var cleared_obs: Array = [] # casillas [x, y] ya despejadas en esta partida
 
 
@@ -1947,29 +1957,24 @@ func _rebuild_shop() -> void:
 		c.queue_free()
 	shop_buttons.clear()
 	var ids: Array = []
-	if shop_mode == "cards":
-		# Menú de cartas: primero lo que tienes (héroes y luego torres), después lo que falta (bloqueado).
-		# Cada grupo va ordenado por color de rareza (común → legendaria).
-		# Héroes: se colocan gratis, hasta MAX_HEROES a la vez y uno de cada.
-		var h_owned: Array = []
-		var h_missing: Array = []
-		if coop == "":
-			for hid in GameData.sort_by_rarity(GameData.HEROES.keys()):
-				(h_owned if Save.owns(hid) else h_missing).append(hid)
-		var owned: Array = []
-		var missing: Array = []
-		for id in GameData.sort_by_rarity(GameData.TOWERS.keys()):
-			if not Meta.is_progress_tower(id):
-				(owned if Save.owns(id) else missing).append(id)
+	# Un solo menú (Construir): primero lo que tienes (héroes y torres), después lo que falta
+	# (bloqueado: se consigue en los sobres). Cada grupo va por color de rareza (común → legendaria).
+	# Héroes: se colocan gratis, hasta MAX_HEROES a la vez y uno de cada.
+	var h_owned: Array = []
+	var h_missing: Array = []
+	if coop == "":
+		for hid in GameData.sort_by_rarity(GameData.HEROES.keys()):
+			(h_owned if Save.owns(hid) else h_missing).append(hid)
+	var owned: Array = []
+	var missing: Array = []
+	for id in GameData.sort_by_rarity(GameData.TOWERS.keys()):
+		(owned if Meta.tower_available(id) else missing).append(id)
+	if shop_mode == "heroes":
 		ids.append_array(h_owned.map(func(h): return HERO_KEY + ":" + h))
-		ids.append_array(owned)
 		ids.append_array(h_missing.map(func(h): return HERO_KEY + ":" + h))
-		ids.append_array(missing)
 	else:
-		# Menú normal: torres de oro. Primero las que tienes (por rareza), luego las que faltan (se consiguen en sobres)
-		var prog: Array = GameData.sort_by_rarity(GameData.TOWERS.keys().filter(func(id): return Meta.is_progress_tower(id)), true)
-		prog = prog.filter(func(id): return Meta.tower_available(id)) + prog.filter(func(id): return not Meta.tower_available(id))
-		ids.append_array(prog)
+		ids.append_array(owned)
+		ids.append_array(missing)
 	for id in ids:
 		var is_hero_btn: bool = id.begins_with(HERO_KEY)
 		var hero_id: String = id.substr(HERO_KEY.length() + 1) if is_hero_btn else ""
@@ -2217,6 +2222,8 @@ func _refresh_hud() -> void:
 			(sel_node as Control).visible = build_id == id or (build_id == HERO_KEY and id == HERO_KEY + ":" + str(Save.data["selected_hero"]))
 		if b.has_meta("cost_label"):
 			(b.get_meta("cost_label") as Label).add_theme_color_override("font_color", Color(1.0, 0.55, 0.5) if poor else Color(1.0, 0.92, 0.6))
+			if not id.begins_with(HERO_KEY) and not bool(b.get_meta("hero_out", false)):
+				(b.get_meta("cost_label") as Label).text = GameData.format_num(tower_cost(id)) # sube con cada torre igual
 	for i in ability_btns.size():
 		var ab: Button = ability_btns[i]
 		var hh: Tower = heroes[i] if i < heroes.size() and is_instance_valid(heroes[i]) else null
@@ -2302,7 +2309,7 @@ func _update_info_panel() -> void:
 	if cell_h(t.cell) > 0.0:
 		lines.append("En lo alto de una colina: +%d%% de alcance" % int(HEIGHT_RANGE_BONUS * cell_h(t.cell) * 100.0))
 	var max_l := GameData.HERO_MAX_LEVEL if t.is_hero else GameData.MAX_TOWER_LEVEL
-	if t.level < max_l and t.can_attack() and not t.is_card:
+	if t.is_hero and t.level < max_l and t.can_attack():
 		var d0 := t.damage()
 		var r0 := t.range_px() / T
 		var s0 := t.rate()
@@ -2362,26 +2369,13 @@ func _update_info_panel() -> void:
 func _update_info_buttons() -> void:
 	if _info_up == null or not is_instance_valid(_info_up) or selected == null:
 		return
-	var cost := selected.upgrade_cost()
-	if selected.is_card:
-		_info_up.disabled = true
-		var cl := Save.card_level(selected.id)
-		if cl >= GameData.MAX_CARD_LEVEL:
-			UIKit.set_button_content(_info_up, "star", "CARTA AL MÁXIMO", 18, 32)
-		else:
-			UIKit.set_button_content(_info_up, "cards", "Sube con cartas\nCarta Nv. %d/%d" % [cl, GameData.MAX_CARD_LEVEL], 16, 30)
-	elif cost < 0:
-		_info_up.disabled = true
-		UIKit.set_button_content(_info_up, "star", "NIVEL MÁXIMO", 19, 32)
-	elif selected.is_hero:
-		_info_up.disabled = false
-		UIKit.set_button_content(_info_up, "coin", "Subir nivel (permanente)\n%s oro" % GameData.format_num(Meta.hero_level_cost(selected.id)), 15, 30)
+	# PC: torres y héroes suben de nivel solo con cartas (copias de los sobres)
+	_info_up.disabled = true
+	var cl := Save.card_level(selected.id)
+	if cl >= GameData.MAX_CARD_LEVEL:
+		UIKit.set_button_content(_info_up, "star", "CARTA AL MÁXIMO", 18, 32)
 	else:
-		_info_up.disabled = gold < cost
-		if selected.level == GameData.MAX_TOWER_LEVEL - 1:
-			UIKit.set_button_content(_info_up, "star", "Maestría\n%s oro" % GameData.format_num(cost), 18, 34)
-		else:
-			UIKit.set_button_content(_info_up, "upgrade", "Mejorar (U)\n%s oro" % GameData.format_num(cost), 19, 34)
+		UIKit.set_button_content(_info_up, "cards", "Sube con cartas de sobres\nCarta Nv. %d/%d · copias %d/%d" % [cl, GameData.MAX_CARD_LEVEL, int(Save.card(selected.id)["copies"]), Meta.copies_needed(cl)], 15, 30)
 
 
 ## Configuración durante la partida (la pausa mientras está abierta).
@@ -2898,13 +2892,6 @@ func _open_fortress() -> void:
 	for id in GameData.GEM_UPGRADES.keys():
 		var def: Dictionary = GameData.GEM_UPGRADES[id]
 		list.add_child(_fortress_row(def["name"], def["desc"], Save.gem_upgrade_level(id), int(def["max"]), "coin", Meta.gem_upgrade_cost(id), Save.coins(), func() -> bool: return Meta.buy_gem_upgrade(id)))
-	list.add_child(UIKit.ink("Entrenamiento de torres", 20, UIKit.PURPLE.darkened(0.3), HORIZONTAL_ALIGNMENT_CENTER, true))
-	list.add_child(UIKit.ink("Nivel con el que se construye cada torre, en todos los mapas", 15, UIKit.INK_SOFT, HORIZONTAL_ALIGNMENT_CENTER))
-	for id in GameData.TOWERS.keys():
-		if not Meta.tower_available(id) or not Meta.is_progress_tower(id):
-			continue
-		var tdef: Dictionary = GameData.TOWERS[id]
-		list.add_child(_fortress_row(tdef["name"], "Se construye en nivel %d" % Meta.tower_start_level(id), Save.tower_train_level(id), GameData.TOWER_TRAIN_MAX, "coin", Meta.tower_train_cost(id), Save.coins(), func() -> bool: return Meta.buy_tower_train(id)))
 	_fortress_popup = UIKit.popup(ui, "La Fortaleza", scroll, [["Volver a la batalla", func() -> void:
 		get_tree().paused = false, UIKit.GREEN]], 690)
 
@@ -2940,3 +2927,16 @@ func _fortress_row(title: String, desc: String, lvl: int, maxl: int, currency: S
 				_open_fortress())
 		row.add_child(b)
 	return p
+
+
+## Las torres de oro del campo toman el nivel que marca su carta (tras abrir sobres).
+func _sync_card_levels() -> void:
+	for t in towers.values():
+		if is_instance_valid(t) and (t.is_hero or Meta.is_progress_tower(t.id)):
+			var lv := Save.hero_level(t.id) if t.is_hero else Meta.tower_start_level(t.id)
+			if lv != t.level:
+				t.level = lv
+				spawn_fx("levelup", t.position, T * 0.7, UIKit.GOLD, 1.2)
+	_recalc_auras()
+	if selected != null:
+		_update_info_panel()

@@ -3,16 +3,24 @@ extends RefCounted
 ## Generación procedural de las 500 oleadas de cada mapa.
 ## Cada mapa usa su propia lista de enemigos ("roster") y su jefe.
 
-const HP_BASE := 16.0
+const HP_BASE := 28.0 # PC: caminos largos y muchas torres; antes 16
 const HP_GROWTH := 1.025
+const LATE_WAVE := 60 # desde esta oleada la vida crece más deprisa (el fin de juego era demasiado fácil)
+const LATE_GROWTH := 1.035
+const LATE_MAP := 0.02 # x1.3 en el mapa 5, x3 en el mapa 10, x8 en el mapa 20
 
 
-const NORMAL_HP_MULT := 1.25 # vida extra de los monstruos normales y élites (PC: hay muchos más por oleada)
-const BOSS_HP_MULT := 0.5 # los jefes: x1.25 x 0.5 = 62% de la vida base
+const NORMAL_HP_MULT := 1.5 # vida extra de los monstruos normales y élites
+const BOSS_HP_MULT := 0.45 # los jefes: x1.5 x 0.45 = 68% de la vida base (y crecen con la oleada)
 
 
 static func base_hp(map_idx: int, wave: int) -> float:
-	return HP_BASE * GameData.map_difficulty(map_idx) * (1.0 + 0.11 * wave) * pow(HP_GROWTH, wave)
+	var hp := HP_BASE * GameData.map_difficulty(map_idx) * (1.0 + 0.11 * wave) * pow(HP_GROWTH, wave)
+	# Fin de juego (PC): a partir de la oleada LATE_WAVE la vida crece bastante más rápido
+	# (x4 en la 100, x123 en la 200, x3800 en la 300) y los últimos mapas son mucho más duros.
+	hp *= pow(LATE_GROWTH, maxi(wave - LATE_WAVE, 0))
+	hp *= 1.0 + LATE_MAP * map_idx * map_idx
+	return hp
 
 
 ## Oro por enemigo: es la ÚNICA fuente de oro en la partida (no hay bonos por oleada).

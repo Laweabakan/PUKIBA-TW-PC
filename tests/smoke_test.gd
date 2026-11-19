@@ -53,8 +53,13 @@ func _test_meta() -> void:
 	check(Meta.buy_upgrade("damage"), "comprar mejora")
 	check(Save.upgrade_level("damage") == 1, "nivel mejora")
 	# Subir carta
+	Save.data["cards"]["archer"]["level"] = 1
 	Save.data["cards"]["archer"]["copies"] = 5
-	check(Meta.level_card("archer"), "subir carta")
+	check(Meta.level_card("archer"), "subir carta (solo con copias)")
+	Save.data["cards"]["mage"] = {"copies": 0, "level": 1}
+	for k in 3:
+		Meta.add_card("mage")
+	check(Save.card_level("mage") == 2 and Meta.tower_start_level("mage") == GameData.CARD_TO_TOWER_LEVEL[2], "la carta sube sola con copias y sube el nivel de la torre")
 	check(Save.card_level("archer") == 2, "nivel carta")
 	for i in 20:
 		check(GameData.map_path(i).size() >= 2, "camino mapa %d" % i)
@@ -86,12 +91,11 @@ func _test_meta() -> void:
 	check(Save.coins() == cb - gc0, "la mejora especial se cobra en oro")
 	check(Meta.gem_upgrade_cost("g_damage") > gc0, "cada nivel más caro")
 	check(Save.gem_upgrade_value("g_damage") > 0.0, "efecto de la mejora especial")
-	var tc0 := Meta.tower_train_cost("archer")
-	check(Meta.buy_tower_train("archer") and Save.tower_train_level("archer") == 1 and Meta.tower_train_cost("archer") > tc0, "entrenamiento de torres")
-	check(Meta.tower_start_level("archer") >= 1, "la torre entrenada se construye con nivel")
 	Save.data["cards"]["aldric"]["level"] = 1
-	var hl0 := Save.hero_level("aldric")
-	check(Meta.level_hero("aldric") and Save.hero_level("aldric") == hl0 + 1, "héroe sube de nivel con oro")
+	Save.data["cards"]["aldric"] = {"copies": 0, "level": 1}
+	for k in 3:
+		Meta.add_card("aldric")
+	check(not Meta.level_hero("aldric") and Save.hero_level("aldric") == GameData.CARD_TO_HERO_LEVEL[2], "héroe sube de nivel solo con cartas")
 	# Progresión a largo plazo
 	var lvl0 := int(Save.data["level"])
 	Meta.add_xp(5000)
@@ -182,6 +186,8 @@ func _test_game() -> void:
 			check(t.level <= GameData.HERO_MAX_LEVEL, "héroe dentro de su máximo")
 		elif t.is_card:
 			check(t.level == 0, "torre de cartas no sube con oro: " + t.id)
+		elif true:
+			check(t.level == Meta.tower_start_level(t.id) and t.level == GameData.CARD_TO_TOWER_LEVEL[3], "torre de oro: nivel de su carta, sin mejoras con oro: " + t.id)
 		else:
 			check(t.level == GameData.MAX_TOWER_LEVEL, "torre nivel 15: " + t.id)
 	game._select(null)
@@ -286,14 +292,14 @@ func _test_game() -> void:
 	game2._on_tap(sp)
 	check(game2.towers.size() == n0 + 1, "segundo toque: construye")
 	# Construir / Demoler
-	game2._toggle_build_menu("cards")
-	check(game2.shop_panel.visible and game2.shop_mode == "cards", "botón cartas abre el menú de sobres")
 	game2._toggle_build_menu("progress")
 	var prog_n := 0
 	for tid in GameData.TOWERS.keys():
 		if Meta.is_progress_tower(tid):
 			prog_n += 1
-	check(game2.shop_panel.visible and game2.shop_buttons.size() == prog_n, "menú construir muestra todas las torres del juego")
+	check(game2.shop_panel.visible and game2.shop_buttons.size() == GameData.TOWERS.size(), "menú Torres muestra todas las torres")
+	game2._toggle_build_menu("heroes")
+	check(game2.shop_panel.visible and game2.shop_buttons.size() == GameData.HEROES.size(), "menú Héroes muestra todos los héroes")
 	game2._toggle_demolish()
 	check(game2.demolish_mode and not game2.shop_panel.visible, "modo demoler")
 	var n_before: int = game2.towers.size()
