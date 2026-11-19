@@ -583,7 +583,7 @@ static func popup(parent: Node, title: String, body: Control, buttons: Array, wi
 	ps.shadow_color = Color(0, 0, 0, 0.4)
 	ps.shadow_offset = Vector2(0, 8)
 	p.add_theme_stylebox_override("panel", ps)
-	p.custom_minimum_size = Vector2(mini(width, 696), 0)
+	p.custom_minimum_size = Vector2(mini(width, 1240), 0)
 	center.add_child(p)
 	var v := vbox(16)
 	p.add_child(v)
@@ -596,7 +596,7 @@ static func popup(parent: Node, title: String, body: Control, buttons: Array, wi
 	hs.content_margin_bottom = 10
 	head.add_theme_stylebox_override("panel", hs)
 	head.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	head.custom_minimum_size = Vector2(minf(float(mini(width, 696)) * 0.6, 380.0), 0)
+	head.custom_minimum_size = Vector2(minf(float(mini(width, 1240)) * 0.6, 380.0), 0)
 	var tl := label(title, 30, GOLD, HORIZONTAL_ALIGNMENT_CENTER)
 	tl.add_theme_font_override("font", font(true))
 	tl.add_theme_color_override("font_outline_color", NAVY_DARK)
@@ -662,14 +662,14 @@ static func toast(parent: Node, text: String, color: Color = GOLD) -> void:
 	var l := label(text, 23, color, HORIZONTAL_ALIGNMENT_CENTER)
 	l.add_theme_font_override("font", font(true))
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	if font(true).get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 23).x > 600.0:
+	if font(true).get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 23).x > 900.0:
 		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		l.custom_minimum_size = Vector2(600, 0)
+		l.custom_minimum_size = Vector2(900, 0)
 	p.add_child(l)
 	parent.add_child(p)
 	p.reset_size()
-	var y := 214.0 + 66.0 * float(mini(n, 3))
-	p.position = Vector2((GameData.SCREEN.x - p.size.x) * 0.5, y - 24.0)
+	var y := 130.0 + 66.0 * float(mini(n, 3))
+	p.position = Vector2((GameData.screen().x - p.size.x) * 0.5, y - 24.0)
 	p.pivot_offset = p.size * 0.5
 	p.modulate.a = 0.0
 	p.scale = Vector2(0.85, 0.85)

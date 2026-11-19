@@ -1,7 +1,7 @@
 class_name SettingsPanel
 extends RefCounted
-## Ventana de Configuración (engranaje arriba a la derecha en el menú y "Ajustes" en la pausa):
-## sonido, vibración, gráficos, notificaciones, cuenta de Google Play Juegos, compras,
+## Ventana de Configuración (engranaje en el menú y en la batalla):
+## sonido, pantalla completa, gráficos, atajos de teclado, guardado en la nube,
 ## documentos legales y estadísticas.
 
 
@@ -9,7 +9,7 @@ static func open(parent: Control, in_battle := false, on_reset := Callable()) ->
 	var scroll := ScrollContainer.new()
 	scroll.scroll_deadzone = 16
 	UIKit.drag_anywhere(scroll)
-	scroll.custom_minimum_size = Vector2(640, 820)
+	scroll.custom_minimum_size = Vector2(780, 680)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	var v := UIKit.vbox(10)
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -19,21 +19,21 @@ static func open(parent: Control, in_battle := false, on_reset := Callable()) ->
 	v.add_child(_section("Sonido"))
 	v.add_child(_slider_row("Música", "music_vol", 0.7))
 	v.add_child(_slider_row("Efectos", "sfx_vol", 0.8))
-	v.add_child(_toggle_row("Vibración", "vibration", true, func(_on: bool) -> void: Audio.vibrate(60)))
 
-	# ---- Gráficos
-	v.add_child(_section("Gráficos"))
+	# ---- Pantalla y gráficos
+	v.add_child(_section("Pantalla y gráficos"))
+	v.add_child(_toggle_row("Pantalla completa (F11)", "fullscreen", false, func(_on: bool) -> void:
+		apply_window()))
+	v.add_child(_toggle_row("Sincronización vertical (VSync)", "vsync", true, func(_on: bool) -> void:
+		apply_window()))
 	v.add_child(_toggle_row("Calidad alta (sombras y suavizado)", "quality_high", true, func(_on: bool) -> void:
 		apply_graphics(parent.get_viewport())
 		UIKit.toast(parent, "Las sombras cambian en la próxima partida", UIKit.PARCHMENT)))
 	v.add_child(_toggle_row("Números de oro flotantes", "float_text", true))
 
-	# ---- Avisos
-	v.add_child(_section("Notificaciones"))
-	v.add_child(_toggle_row("Recordatorios (tesoro lleno, sobres listos)", "notifications", true))
-
 	# ---- Ayuda: reportar errores por correo al equipo
 	v.add_child(_section("Ayuda"))
+	v.add_child(UIKit.ink("Atajos: Espacio = siguiente oleada · 1/2/3 = velocidad · R = girar vista · Q/E = girar\nRueda = zoom · Clic derecho o WASD = mover la cámara · Esc = pausa · F11 = pantalla completa", 16, UIKit.INK))
 	var bug := UIKit.button("", UIKit.BLUE, 18, Vector2(0, 60))
 	UIKit.set_button_content(bug, "quest", "Reportar un error", 19, 30)
 	bug.mouse_filter = Control.MOUSE_FILTER_PASS
@@ -41,38 +41,15 @@ static func open(parent: Control, in_battle := false, on_reset := Callable()) ->
 		CrashReport.open_bug_report()
 		UIKit.toast(parent, "Se abre tu correo con un mensaje para %s" % CrashReport.BUG_EMAIL, UIKit.PARCHMENT))
 	v.add_child(bug)
-	var bug_note := UIKit.ink("Se abre tu app de correo con un mensaje para el equipo (incluye la versión y el registro del juego).", 14, UIKit.INK_SOFT)
+	var bug_note := UIKit.ink("Se abre tu programa de correo con un mensaje para el equipo (incluye la versión y el registro del juego).", 14, UIKit.INK_SOFT)
 	bug_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	bug_note.custom_minimum_size = Vector2(600, 0)
+	bug_note.custom_minimum_size = Vector2(720, 0)
 	v.add_child(bug_note)
 
 	# ---- Cuenta
 	v.add_child(_section("Cuenta"))
-	var gp := UIKit.button("", UIKit.GREEN, 18, Vector2(0, 64))
-	gp.mouse_filter = Control.MOUSE_FILTER_PASS
-	var refresh_gp := func() -> void:
-		if PlayGames.signed_in:
-			UIKit.set_button_content(gp, "check", "Google Play Juegos: %s" % (PlayGames.player_name if PlayGames.player_name != "" else "conectado"), 18, 28)
-		else:
-			UIKit.set_button_content(gp, "play", "Conectar con Google Play Juegos", 18, 28)
-	refresh_gp.call()
-	gp.pressed.connect(func() -> void:
-		if not PlayGames.available():
-			UIKit.toast(parent, "Disponible en la versión de Android con Google Play Juegos", UIKit.PARCHMENT)
-		elif not PlayGames.signed_in:
-			PlayGames.sign_in())
-	PlayGames.status_changed.connect(func(_ok: bool) -> void:
-		if is_instance_valid(gp):
-			refresh_gp.call())
-	v.add_child(gp)
-	v.add_child(UIKit.ink("Guardado en la nube: %s" % ("activo" if Online.online else "sin conexión (se guarda en el móvil)"), 16, UIKit.GREEN.darkened(0.3) if Online.online else UIKit.INK_SOFT))
+	v.add_child(UIKit.ink("Guardado en la nube: %s" % ("activo" if Online.online else "sin conexión (se guarda en este PC)"), 16, UIKit.GREEN.darkened(0.3) if Online.online else UIKit.INK_SOFT))
 	v.add_child(UIKit.ink("Código de jugador: %s" % Online.player_code(), 16, UIKit.INK_SOFT))
-	var restore := UIKit.button("Restaurar compras", UIKit.BLUE, 17, Vector2(0, 56))
-	restore.mouse_filter = Control.MOUSE_FILTER_PASS
-	restore.pressed.connect(func() -> void:
-		IAP.restore_purchases()
-		UIKit.toast(parent, "Buscando compras anteriores...", UIKit.PARCHMENT))
-	v.add_child(restore)
 
 	# ---- Legal
 	v.add_child(_section("Legal"))
@@ -91,7 +68,7 @@ static func open(parent: Control, in_battle := false, on_reset := Callable()) ->
 	var st: Dictionary = Save.data["stats"]
 	for line in [["skull", "Enemigos derrotados: %d" % int(st["kills"])], ["flag", "Oleadas superadas: %d" % int(st["waves"])], ["cards", "Sobres abiertos: %d" % int(st["packs"])]]:
 		v.add_child(UIKit.icon_label(line[0], line[1], 18, UIKit.INK, 28, true))
-	v.add_child(UIKit.ink("Versión %s · Facturación: %s" % [ProjectSettings.get_setting("application/config/version", "1.0"), "Google Play" if IAP.is_real_billing() else "simulada"], 14, UIKit.INK_SOFT))
+	v.add_child(UIKit.ink("Versión %s (PC)" % ProjectSettings.get_setting("application/config/version", "1.0"), 14, UIKit.INK_SOFT))
 
 	if not in_battle and on_reset.is_valid():
 		var reset := UIKit.button("Borrar todo el progreso", UIKit.RED, 16, Vector2(300, 54))
@@ -102,7 +79,7 @@ static func open(parent: Control, in_battle := false, on_reset := Callable()) ->
 				["Borrar", on_reset, UIKit.RED],
 				["Cancelar", Callable(), UIKit.GREY]]))
 		v.add_child(reset)
-	return UIKit.popup(parent, "Configuración", scroll, [["Cerrar", Callable(), UIKit.GREY]], 690)
+	return UIKit.popup(parent, "Configuración", scroll, [["Cerrar", Callable(), UIKit.GREY]], 840)
 
 
 ## Suavizado (MSAA) según la calidad elegida. Las sombras las lee la partida al empezar.
@@ -219,12 +196,30 @@ static func show_legal(parent: Control, doc: String) -> void:
 	var lines := text.split("\n")
 	var scroll := ScrollContainer.new()
 	scroll.scroll_deadzone = 16
-	scroll.custom_minimum_size = Vector2(620, 820)
+	scroll.custom_minimum_size = Vector2(760, 680)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	var lbl := UIKit.ink("\n".join(lines.slice(1)).strip_edges(), 15, UIKit.INK)
 	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	lbl.custom_minimum_size = Vector2(600, 0)
+	lbl.custom_minimum_size = Vector2(740, 0)
 	lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(lbl)
 	var titles := {"terminos": "Términos y condiciones", "privacidad": "Privacidad", "licencias": "Licencias"}
-	UIKit.popup(parent, titles.get(doc, "Legal"), scroll, [["Cerrar", Callable(), UIKit.GREY]], 690)
+	UIKit.popup(parent, titles.get(doc, "Legal"), scroll, [["Cerrar", Callable(), UIKit.GREY]], 840)
+
+
+## Pantalla completa y VSync según la configuración (se llama al arrancar y al cambiarlas).
+static func apply_window() -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	var full := bool(setting("fullscreen", false))
+	var want := DisplayServer.WINDOW_MODE_FULLSCREEN if full else DisplayServer.WINDOW_MODE_WINDOWED
+	if DisplayServer.window_get_mode() != want and not (not full and DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_MAXIMIZED):
+		DisplayServer.window_set_mode(want)
+	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_ENABLED if bool(setting("vsync", true)) else DisplayServer.VSYNC_DISABLED)
+
+
+## F11 (o Alt+Intro): cambia entre ventana y pantalla completa y lo recuerda.
+static func toggle_fullscreen() -> void:
+	Save.data["settings"]["fullscreen"] = not bool(setting("fullscreen", false))
+	Save.save_game()
+	apply_window()

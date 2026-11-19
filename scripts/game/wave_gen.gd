@@ -7,8 +7,8 @@ const HP_BASE := 16.0
 const HP_GROWTH := 1.025
 
 
-const NORMAL_HP_MULT := 1.6 # vida extra de los monstruos normales y élites
-const BOSS_HP_MULT := 0.4 # los jefes: x1.6 x 0.4 = 64% de la vida que tenían
+const NORMAL_HP_MULT := 1.25 # vida extra de los monstruos normales y élites (PC: hay muchos más por oleada)
+const BOSS_HP_MULT := 0.5 # los jefes: x1.25 x 0.5 = 62% de la vida base
 
 
 static func base_hp(map_idx: int, wave: int) -> float:
@@ -28,7 +28,7 @@ static func clear_bonus(wave: int) -> int:
 ## financian las mejoras que permiten llegar más lejos en los antiguos).
 static func coins_for_wave(map_idx: int, wave: int) -> int:
 	var c := 3.0 * pow(GameData.map_difficulty(map_idx), 1.8) * (1.0 + wave / 20.0) * pow(1.012, wave)
-	return int(c * (1.0 + Save.upgrade_value("coins") + Save.gem_upgrade_value("g_coins")) * Meta.event_mult("coins"))
+	return int(c * (1.0 + Save.upgrade_value("coins") + Save.gem_upgrade_value("g_coins")))
 
 
 static func is_boss_wave(wave: int) -> bool:
@@ -57,8 +57,9 @@ static func generate(map_idx: int, wave: int) -> Array:
 	if walkers.is_empty():
 		walkers = ["goblin"]
 
-	var count := mini(5 + int(wave * 0.35), 45)
-	var interval := maxf(0.28, 0.95 - wave * 0.004)
+	# PC: oleadas más numerosas (mapas más grandes y con más caminos)
+	var count := mini(8 + int(wave * 0.6), 90)
+	var interval := maxf(0.18, 0.72 - wave * 0.003)
 	var out: Array = []
 
 	var pool: Array = available

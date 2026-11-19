@@ -584,7 +584,7 @@ func _draw() -> void:
 	match kind:
 		"screen":
 			var k := clampf(life / max_life, 0.0, 1.0)
-			var sz: Vector2 = GameData.SCREEN
+			var sz: Vector2 = GameData.screen()
 			draw_rect(Rect2(Vector2.ZERO, sz), Color(color, 0.18 * k))
 			# Viñeta: bordes más intensos
 			var e := 70.0

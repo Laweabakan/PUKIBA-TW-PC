@@ -22,7 +22,7 @@ const FPS := 15.0 # modo en vivo: gira a 15 fps
 static func snap_size() -> Vector2i:
 	var k := 1.0
 	if DisplayServer.get_name() != "headless":
-		k = clampf(float(DisplayServer.window_get_size().y) / 1280.0, 1.0, 2.0)
+		k = clampf(float(DisplayServer.window_get_size().y) / 1080.0, 1.0, 2.0)
 	var s := int(176.0 * k)
 	return Vector2i(s, s)
 

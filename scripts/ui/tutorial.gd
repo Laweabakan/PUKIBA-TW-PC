@@ -3,12 +3,14 @@ extends CanvasLayer
 ## Tutorial básico de la primera partida, sobre el propio juego (sin bloquear nada):
 ##   1) colocar una torre (Construir → elegir torre → tocar casilla → tocar otra vez),
 ##   2) comprar una mejora en La Fortaleza (tocando el castillo),
-##   3) abrir un sobre (el sobre gratis de la Tienda).
+##   3) comprar y abrir un sobre de torres con oro en la Tienda.
 ## Una flecha que rebota señala dónde tocar y un globo explica qué hacer.
 ## El progreso se guarda en Save.data["tutorial"] (0..3; 3 = terminado).
 
 const DONE := 3
-const GIFT_GEMS := 50
+const GIFT_GOLD := 1500
+const BUBBLE_POS := Vector2(660, 100) # arriba, centrado (pantalla de 1920x1080)
+const BUBBLE_SIDE := Vector2(10, 160) # a la izquierda, cuando hay una ventana abierta en el centro
 
 var game: Node
 var _bubble: PanelContainer
@@ -49,7 +51,7 @@ func setup(g: Node) -> void:
 	st.content_margin_top = 12
 	st.content_margin_bottom = 12
 	_bubble.add_theme_stylebox_override("panel", st)
-	_bubble.position = Vector2(30, 262)
+	_bubble.position = BUBBLE_POS
 	_bubble.custom_minimum_size = Vector2(600, 0)
 	root.add_child(_bubble)
 	var v := UIKit.vbox(2)
@@ -64,7 +66,7 @@ func setup(g: Node) -> void:
 	_text.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	v.add_child(_text)
 	_skip = UIKit.button("Saltar tutorial", UIKit.GREY, 14, Vector2(150, 40))
-	_skip.position = Vector2(20, 136)
+	_skip.position = Vector2(20, 100)
 	_skip.pressed.connect(func() -> void: _finish(false))
 	root.add_child(_skip)
 	Meta.pack_opened.connect(_on_pack_opened)
@@ -93,7 +95,7 @@ func _step_build() -> void:
 		_advance("¡Bien hecho! Tu primera torre ya defiende el camino.")
 		return
 	if not game.shop_panel.visible:
-		_say("Pulsa CONSTRUIR para ver tus torres.")
+		_say("Pulsa CONSTRUIR (o la tecla B) para ver tus torres.")
 		_point_rect(game.btn_build.get_global_rect())
 	elif game.build_id == "":
 		_say("Elige la Torre de Arqueros.")
@@ -101,10 +103,10 @@ func _step_build() -> void:
 		if b != null:
 			_point_rect(b.get_global_rect())
 	elif game.preview_cell == Vector2i(-99, -99):
-		_say("Toca una casilla libre junto al camino: verás el alcance de la torre.")
+		_say("Pasa el ratón por una casilla libre junto al camino: verás el alcance de la torre.")
 		_point_screen(game.screen_pos(GameData.cell_center(_good_cell())), true)
 	else:
-		_say("Toca OTRA VEZ la misma casilla para construir la torre.")
+		_say("Haz clic en esa casilla para construir la torre. (Clic derecho: cancelar)")
 		_point_screen(game.screen_pos(GameData.cell_center(game.preview_cell)), true)
 
 
@@ -144,12 +146,12 @@ func _step_fortress() -> void:
 		_advance("¡Mejora comprada! Las mejoras de La Fortaleza son permanentes en todos los mapas.")
 		return
 	var popup_open: bool = game._fortress_popup != null and is_instance_valid(game._fortress_popup)
-	_bubble.position.y = 930.0 if popup_open else 262.0 # que no tape las mejoras (abajo, sobre la lista)
+	_bubble.position = BUBBLE_SIDE if popup_open else BUBBLE_POS # que no tape las mejoras
 	if popup_open:
 		_say("Compra una mejora con oro (por ejemplo, Forja Real: más daño para todas las torres).")
 		_arrow.visible = false
 	else:
-		_say("Toca el CASTILLO para abrir La Fortaleza y comprar mejoras permanentes.")
+		_say("Haz clic en el CASTILLO (o pulsa F) para abrir La Fortaleza y comprar mejoras permanentes.")
 		_point_screen(game.screen_pos(game.castle_plane, 1.2), true)
 
 
@@ -164,22 +166,25 @@ func _total_upgrades() -> int:
 
 # ---------------------------------------------------------------- Paso 3: abrir un sobre
 func _step_pack() -> void:
-	if not Meta.free_pack_ready():
-		Save.data["free_pack_at"] = 0 # el primer sobre de regalo está listo
+	# Asegura oro para el primer sobre de torres (regalo del tutorial)
+	var price := Meta.pack_price("tower_bronze")
+	if Save.coins() < price:
+		Save.add_coins(price - Save.coins())
+		UIKit.toast(game.ui, "Regalo del tutorial: oro para tu primer sobre", UIKit.GOLD)
 	var overlay_open: bool = game._menu_overlay != null and is_instance_valid(game._menu_overlay)
 	var fortress_open: bool = game._fortress_popup != null and is_instance_valid(game._fortress_popup)
-	_bubble.position.y = 1030.0 if overlay_open else (930.0 if fortress_open else 262.0) # que no tape el sobre gratis ni las mejoras
+	_bubble.position = BUBBLE_SIDE if overlay_open or fortress_open else BUBBLE_POS # que no tape la tienda ni las mejoras
 	if fortress_open and not overlay_open:
 		_say("¡Bien! Pulsa «Volver a la batalla» y luego abre tu primer sobre en la TIENDA.")
 		_arrow.visible = false
 	elif overlay_open:
-		_say("Pulsa ABRIR en el sobre ¡GRATIS!")
+		_say("Compra un sobre de Torres de Bronce con oro: cada carta nueva desbloquea una torre.")
 		if not _scrolled:
 			_scrolled = true
 			game._menu_overlay.call_deferred("focus_packs")
 		_arrow.visible = false
 	else:
-		_say("Abre tu primer sobre de cartas: pulsa la TIENDA (cofre de la derecha).")
+		_say("Las torres nuevas salen en los sobres: pulsa la TIENDA (cofre de la derecha).")
 		var holder: Control = game._side_badges.get("shop")
 		if holder != null:
 			_point_rect(holder.get_global_rect())
@@ -207,8 +212,8 @@ func _advance(msg: String) -> void:
 func _finish(completed: bool) -> void:
 	Save.data["tutorial"] = DONE
 	if completed:
-		Save.add_gems(GIFT_GEMS)
-		UIKit.toast(game.ui, "¡Tutorial completado! +%d gemas" % GIFT_GEMS, UIKit.GEM)
+		Save.add_coins(GIFT_GOLD)
+		UIKit.toast(game.ui, "¡Tutorial completado! +%d oro" % GIFT_GOLD, UIKit.GOLD)
 	Save.save_game()
 	queue_free()
 

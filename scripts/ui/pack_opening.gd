@@ -63,8 +63,8 @@ static func play(parent: Node, results: Array, pack_id: String, on_close: Callab
 	root.mouse_filter = Control.MOUSE_FILTER_STOP
 	root.theme = UIKit.theme()
 	parent.add_child(root)
-	var W := 720.0
-	var H := 1280.0
+	var W := GameData.screen().x
+	var H := GameData.screen().y
 	var dim := ColorRect.new()
 	dim.color = Color(0.03, 0.04, 0.1, 0.0)
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -86,7 +86,7 @@ static func play(parent: Node, results: Array, pack_id: String, on_close: Callab
 	flash.set_anchors_preset(Control.PRESET_FULL_RECT)
 	flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(flash)
-	var hint := UIKit.label("Toca para abrir", 22, Color(1, 1, 1, 0.85), HORIZONTAL_ALIGNMENT_CENTER)
+	var hint := UIKit.label("Haz clic para abrir", 22, Color(1, 1, 1, 0.85), HORIZONTAL_ALIGNMENT_CENTER)
 	hint.position = Vector2(0, H * 0.45 + 230)
 	hint.size = Vector2(W, 40)
 	hint.modulate.a = 0.0
@@ -140,16 +140,18 @@ static func play(parent: Node, results: Array, pack_id: String, on_close: Callab
 
 static func _deal_cards(root: Control, results: Array, best: int, on_close: Callable, state: Dictionary) -> void:
 	var n := results.size()
-	var cols := mini(n, 3)
-	var cw := 150.0
-	var ch := 176.0
-	var gap := 18.0
+	var W := GameData.screen().x
+	var H := GameData.screen().y
+	var cols := mini(n, 5) # pantalla ancha: las 5 cartas en una fila
+	var cw := 180.0
+	var ch := 212.0
+	var gap := 26.0
 	var rows := ceili(n / float(cols))
-	var top := 1280.0 * 0.45 - (rows * ch + (rows - 1) * gap) * 0.5
+	var top := H * 0.45 - (rows * ch + (rows - 1) * gap) * 0.5
 	var title := UIKit.label("¡Sobre abierto!", 34, UIKit.GOLD, HORIZONTAL_ALIGNMENT_CENTER)
 	title.add_theme_font_override("font", UIKit.font(true))
 	title.position = Vector2(0, top - 90)
-	title.size = Vector2(720, 50)
+	title.size = Vector2(W, 50)
 	title.modulate.a = 0.0
 	root.add_child(title)
 	root.create_tween().tween_property(title, "modulate:a", 1.0, 0.3)
@@ -158,7 +160,7 @@ static func _deal_cards(root: Control, results: Array, best: int, on_close: Call
 		var r: Dictionary = results[i]
 		var row := i / cols
 		var in_row := mini(cols, n - row * cols)
-		var x0 := (720.0 - (in_row * cw + (in_row - 1) * gap)) * 0.5
+		var x0 := (W - (in_row * cw + (in_row - 1) * gap)) * 0.5
 		var target := Vector2(x0 + (i % cols) * (cw + gap), top + row * (ch + gap))
 		var rar_idx := GameData.RARITY_ORDER.find(r["rarity"])
 		var rc: Color = GameData.RARITIES[r["rarity"]]["color"]
@@ -170,7 +172,7 @@ static func _deal_cards(root: Control, results: Array, best: int, on_close: Call
 		back.custom_minimum_size = Vector2(cw, ch)
 		back.size = Vector2(cw, ch)
 		back.pivot_offset = Vector2(cw, ch) * 0.5
-		back.position = Vector2(360 - cw * 0.5, 1280.0 * 0.45 - ch * 0.5)
+		back.position = Vector2(W * 0.5 - cw * 0.5, H * 0.45 - ch * 0.5)
 		back.scale = Vector2(0.3, 0.3)
 		back.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		var crest := UIIcon.make("castle", 64)
@@ -179,6 +181,7 @@ static func _deal_cards(root: Control, results: Array, best: int, on_close: Call
 		back.add_child(crest)
 		root.add_child(back)
 		var front := UIKit.card_widget(r["id"], r["new"])
+		front.custom_minimum_size = Vector2(cw, ch)
 		front.pivot_offset = Vector2(cw, ch) * 0.5
 		front.position = target
 		front.scale = Vector2(0.0, 1.0)
@@ -218,7 +221,7 @@ static func _deal_cards(root: Control, results: Array, best: int, on_close: Call
 	done.tween_interval(delay + 0.9 + 0.12 * best)
 	done.tween_callback(func() -> void:
 		var b := UIKit.button("¡Genial!", UIKit.GREEN, 26, Vector2(260, 76))
-		b.position = Vector2(230, top + rows * (ch + gap) + 40)
+		b.position = Vector2((W - 260.0) * 0.5, top + rows * (ch + gap) + 40)
 		b.pressed.connect(func() -> void:
 			root.queue_free()
 			if on_close.is_valid():

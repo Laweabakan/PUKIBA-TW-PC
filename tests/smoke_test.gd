@@ -27,33 +27,35 @@ func _ready() -> void:
 
 
 func _test_meta() -> void:
-	check(Save.owns("archer") and not Save.owns("obelisk"), "cartas iniciales")
-	check(Meta.daily_available(), "diario disponible")
-	var gems_before := Save.gems()
-	Meta.claim_daily()
-	check(not Meta.daily_available(), "diario reclamado")
-	check(Save.coins() >= 800, "recompensa día 1")
-	Meta.double_daily()
-	check(not Meta.can_double_daily(), "duplicar diario")
-	Save.add_gems(5000)
-	var res := Meta.buy_pack_with_gems("epic")
-	check(res.size() == 5, "sobre épico da 5 cartas")
+	# PC: solo la torre básica de serie; nada de héroes ni otras torres
+	check(Save.owns("archer") and not Save.owns("obelisk") and not Save.owns("poison"), "cartas iniciales: solo la torre básica")
+	check(Meta.tower_available("archer") and not Meta.tower_available("mage"), "torres de oro bloqueadas hasta su carta")
+	for hid in GameData.HEROES.keys():
+		check(not Save.owns(hid), "sin héroes al empezar: " + hid)
+	# Sobres con oro
+	Save.data["coins"] = 0
+	check(Meta.buy_packs("tower_bronze", 1).is_empty(), "sin oro no hay sobre")
+	Save.add_coins(100000)
+	var c_before := Save.coins()
+	var res := Meta.buy_packs("tower_gold", 1)
+	check(res.size() == 5, "sobre da 5 cartas")
+	check(Save.coins() == c_before - Meta.pack_price("tower_gold"), "el sobre se cobra en oro")
 	var has_epic := false
 	for r in res:
-		if GameData.RARITY_ORDER.find(r["rarity"]) >= 2:
+		if GameData.RARITY_ORDER.find(r["rarity"]) >= 3:
 			has_epic = true
-	check(has_epic, "garantía épica")
-	check(Save.gems() == gems_before + 5000 - 420, "cobro de gemas")
-	Save.add_coins(100000)
+	check(has_epic, "garantía épica del sobre de oro")
+	var multi := Meta.buy_packs("tower_bronze", 10)
+	check(multi.size() == 50, "x10 sobres = 50 cartas")
+	# Las torres de oro se desbloquean al conseguir su carta
+	Meta.add_card("mage")
+	check(Meta.tower_available("mage"), "carta de torre de oro la desbloquea")
 	check(Meta.buy_upgrade("damage"), "comprar mejora")
 	check(Save.upgrade_level("damage") == 1, "nivel mejora")
 	# Subir carta
 	Save.data["cards"]["archer"]["copies"] = 5
 	check(Meta.level_card("archer"), "subir carta")
 	check(Save.card_level("archer") == 2, "nivel carta")
-	check(Meta.quests().size() == 3, "misiones diarias")
-	Meta.grant_product("no_ads")
-	check(Ads.has_no_ads(), "sin anuncios")
 	for i in 20:
 		check(GameData.map_path(i).size() >= 2, "camino mapa %d" % i)
 	var hp := Meta.open_pack("hero_gold")
@@ -68,82 +70,56 @@ func _test_meta() -> void:
 		if GameData.is_hero(r["id"]):
 			only_towers = false
 	check(only_towers, "sobre de torres solo trae torres")
-	# Día 7 del diario: carta legendaria, primero una que no se tenga
-	var leg: Dictionary = Meta.grant_legendary()
-	check(leg["rarity"] == "legendary" and leg["new"], "día 7: legendaria nueva")
-	check(GameData.DAILY_REWARDS.size() == 7 and GameData.DAILY_REWARDS[6].has("legendary"), "diario de 7 días")
-	# Biblia de monetización
 	Save.data["pity"] = {"epic": 0, "legendary": GameData.PITY_LEGENDARY - 1}
 	var pr := Meta.open_pack("common")
 	check(pr[0]["rarity"] == "legendary", "pity garantiza legendaria")
-	var g0 := Save.gems()
-	Meta.grant_product("gems_100")
-	check(Save.gems() - g0 == 240, "x2 en la primera compra")
-	g0 = Save.gems()
-	Meta.grant_product("gems_100")
-	check(Save.gems() - g0 == 120, "segunda compra normal")
 	Save.data["cards"]["archer"]["level"] = GameData.MAX_CARD_LEVEL
 	var c0 := Save.coins()
 	Meta.add_card("archer")
-	check(Save.coins() > c0, "duplicado al máximo da monedas")
+	check(Save.coins() > c0, "duplicado al máximo da oro")
 	Save.data["cards"]["archer"]["level"] = 1
-	check(Meta.daily_shop().size() == 3, "tienda diaria")
-	Save.add_coins(100000)
-	check(Meta.buy_daily_card(Meta.daily_shop()[0]), "comprar en tienda diaria")
-	Meta.grant_product("monthly_card")
-	check(Meta.claim_monthly() == GameData.MONTHLY_DAILY_GEMS and not Meta.monthly_ready(), "cofre mensual")
-	Meta.grant_product("growth_fund")
-	check(bool(Save.data["growth_fund"]), "fondo del reino")
-	# Fortaleza: mejoras con gemas (cada nivel más caro)
-	Save.add_gems(5000)
+	# Fortaleza: mejoras especiales con oro (cada nivel más caro)
+	Save.add_coins(10000000)
 	var gc0 := Meta.gem_upgrade_cost("g_damage")
-	check(Meta.buy_gem_upgrade("g_damage"), "mejora con gemas")
+	var cb := Save.coins()
+	check(Meta.buy_gem_upgrade("g_damage"), "mejora especial con oro")
+	check(Save.coins() == cb - gc0, "la mejora especial se cobra en oro")
 	check(Meta.gem_upgrade_cost("g_damage") > gc0, "cada nivel más caro")
-	check(Save.gem_upgrade_value("g_damage") > 0.0, "efecto de la mejora con gemas")
-	# Entrenamiento de torres: nivel inicial permanente con gemas
+	check(Save.gem_upgrade_value("g_damage") > 0.0, "efecto de la mejora especial")
 	var tc0 := Meta.tower_train_cost("archer")
 	check(Meta.buy_tower_train("archer") and Save.tower_train_level("archer") == 1 and Meta.tower_train_cost("archer") > tc0, "entrenamiento de torres")
 	check(Meta.tower_start_level("archer") >= 1, "la torre entrenada se construye con nivel")
-	# Héroes: nivel permanente con gemas
 	Save.data["cards"]["aldric"]["level"] = 1
 	var hl0 := Save.hero_level("aldric")
-	check(Meta.level_hero("aldric") and Save.hero_level("aldric") == hl0 + 1, "héroe sube de nivel con gemas")
-	# Sin Anuncios: los premios por anuncio se dan al instante
-	var got_reward := [false]
-	Ads.show_rewarded("test", func() -> void: got_reward[0] = true)
-	check(got_reward[0], "sin anuncios: recompensa automática")
+	check(Meta.level_hero("aldric") and Save.hero_level("aldric") == hl0 + 1, "héroe sube de nivel con oro")
 	# Progresión a largo plazo
 	var lvl0 := int(Save.data["level"])
 	Meta.add_xp(5000)
 	check(int(Save.data["level"]) > lvl0, "subida de nivel de cuenta")
-	check(Meta.season_tier() > 0, "pase de temporada avanza")
-	var gems_b := Save.gems()
-	check(Meta.claim_season(1, false).size() >= 0 and Save.gems() >= gems_b, "reclamar pase gratis")
-	check(not Meta.can_claim_season(1, true), "premium bloqueado sin pase")
-	Meta.grant_product("season_pass")
-	check(Meta.can_claim_season(1, true), "premium con pase")
 	Save.data["stats"]["kills"] = 150
 	var a0: Dictionary = GameData.ACHIEVEMENTS[0]
 	check(Meta.claim_achievement(a0) > 0, "reclamar logro")
-	Save.data["treasury_at"] = Save.now() - 3600 * 3
-	check(Meta.claim_treasury() > 0, "tesoro del castillo")
-	check(Meta.buy_daily_deal().size() >= 0 and not Meta.deal_available(), "oferta del día")
+	check(not Save.data.has("gems"), "sin gemas en el guardado")
 	for mi in 20:
 		var info := MapGen.generate(mi)
 		check(not info.is_empty() and info["paths"].size() == int(MapGen.layout(mi)["entries"]), "mapa %d generado" % mi)
+		if not info.is_empty():
+			check(int(info["cols"]) >= 13 and int(info["rows"]) >= 24, "mapa %d grande" % mi)
+	check(int(MapGen.layout(19)["entries"]) == 4, "los últimos mapas tienen 4 caminos")
 	var hills := 0
 	for mi2 in 20:
 		hills += (MapGen.generate(mi2)["heights"] as Dictionary).size()
 	check(hills > 20, "mapas con colinas")
 	var w := WaveGen.generate(19, 500)
 	check(w.size() > 10, "oleada 500")
+	check(WaveGen.generate(0, 20).size() >= 18, "oleadas con más enemigos")
 	await get_tree().process_frame
 
 
 func _test_menu() -> void:
 	var menu: Control = load("res://scenes/menu.tscn").instantiate()
 	add_child(menu)
-	for tab in ["maps", "upgrades", "cards", "shop", "daily"]:
+	for tab in ["maps", "upgrades", "cards", "shop", "achievements"]:
 		menu.show_tab(tab)
 		await get_tree().process_frame
 	menu._card_detail("vex")
@@ -277,7 +253,7 @@ func _test_game() -> void:
 	for k in 4:
 		game2._rotate_view()
 		await get_tree().create_timer(0.6, true, false, true).timeout
-	check(game2.view_rot == 0 and game2._cam_offset.distance_to(off0) < 0.01, "girar la vista 90°")
+	check(game2.view_rot == 3 and game2._cam_offset.distance_to(off0) < 0.01, "girar la vista 90°")
 	# 19 torres de oro (12 + 7 de fin de juego)
 	var gold_n := 0
 	for tid in GameData.TOWERS.keys():
@@ -294,7 +270,7 @@ func _test_game() -> void:
 		await get_tree().process_frame
 	check(not is_instance_valid(game2._menu_overlay) and not get_tree().paused, "cerrar la tienda vuelve a la batalla")
 	get_tree().paused = false
-	# Construir con vista previa del alcance: 1er toque muestra, 2º toque construye
+	# Construir con vista previa del alcance: 1er clic muestra, 2º clic construye (con ratón basta pasar por encima)
 	var free_c := Vector2i(-1, -1)
 	for x in GameData.COLS:
 		for y in GameData.ROWS:

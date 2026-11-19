@@ -3,8 +3,8 @@ extends Node2D
 
 const T := GameData.TILE
 const HERO_KEY := "__hero"
-const SPEED3_AD_DURATION := 30 * 60
-const MAX_ENEMIES := 160
+
+const MAX_ENEMIES := 320
 
 var map_idx := 0
 var map_def: Dictionary = {}
@@ -98,18 +98,14 @@ var _menu_overlay: Control
 ## Accesos de la columna derecha en la batalla (los mismos que en el menú, sin cooperativo)
 const BATTLE_SIDE := [
 	["packs", "Sobres", "gift", Color(0.95, 0.35, 0.45)],
-	["daily", "Diario", "calendar", Color(0.95, 0.42, 0.4)],
-	["quests", "Misiones", "quest", Color(0.36, 0.7, 0.32)],
 	["shop", "Tienda", "chest", Color(0.95, 0.6, 0.2)],
 	["collection", "Colección", "cards", Color(0.42, 0.5, 0.95)],
-	["pass", "Pase", "crown", Color(0.6, 0.42, 0.9)],
-	["treasury", "Tesoro", "coin_bag", Color(0.85, 0.62, 0.2)],
 	["achievements", "Logros", "trophy", Color(0.25, 0.6, 0.9)],
 	["ranking", "Ranking", "trophy", Color(0.85, 0.45, 0.2)],
 ]
 var lbl_lives: Label
 var lbl_gold: Label
-var lbl_gems: Label
+
 var lbl_wave: Label
 var lbl_coins: Label
 var lbl_next: Label
@@ -273,15 +269,16 @@ func _build_world() -> void:
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL # 1 pasada de sombra en vez de 4
 	world.add_child(sun)
 	camera = Camera3D.new()
-	camera.keep_aspect = Camera3D.KEEP_WIDTH # en vertical, siempre caben las 9 columnas
-	camera.fov = 47.0
+	camera.keep_aspect = Camera3D.KEEP_HEIGHT # PC (16:9): el alto de la pantalla abarca las columnas
+	camera.fov = 44.0
 	world.add_child(camera)
 	camera.current = true
-	# El encuadre se escala con el ancho del mapa; empieza mirando la mitad inferior (castillo)
-	# Distancia para que el tablero ocupe casi todo el ancho de la pantalla (calibrado con capturas)
-	_cam_base = (CAMERA_POS - CAMERA_TARGET).normalized() * ((GameData.COLS + 1.0) / 0.7)
-	_cam_offset = _cam_base
-	cam_focus = Vector2(0, GameData.ROWS * 0.12 + 1.0)
+	# Vista apaisada: el tablero se ve girado (entradas a la izquierda, castillo a la derecha).
+	# Distancia para que las columnas llenen el alto de la pantalla (calibrado con capturas)
+	_cam_base = (CAMERA_POS - CAMERA_TARGET).normalized() * ((GameData.COLS + 3.5) / 0.6)
+	view_rot = 3
+	_cam_offset = _cam_base.rotated(Vector3.UP, view_rot * PI * 0.5)
+	cam_focus = Vector2(-0.8, 0.0) # un poco hacia arriba: abajo están la tienda y la barra
 	_apply_camera()
 	# Base del tablero
 	V3.box(Vector3(GameData.COLS + 0.3, 0.6, GameData.ROWS + 0.3), ground.darkened(0.18), Vector3(0, -0.44, 0), 0.0, world)
@@ -396,21 +393,16 @@ func _tile_multimesh(size: Vector3, tiles: Array, tex := "") -> MultiMeshInstanc
 func _apply_camera() -> void:
 	var half_w := GameData.COLS * 0.5
 	var half_h := GameData.ROWS * 0.5
-	if view_rot % 2 == 0:
-		var slack := (1.0 - cam_zoom) * half_w + 0.5
-		cam_focus.x = clampf(cam_focus.x, -slack, slack)
-		cam_focus.y = clampf(cam_focus.y, -half_h + 2.5 * cam_zoom, half_h + 1.5)
-	else:
-		# Vista girada: el tablero queda apaisado, se puede recorrer a lo largo
-		cam_focus.x = clampf(cam_focus.x, -half_w - 0.5, half_w + 0.5)
-		cam_focus.y = clampf(cam_focus.y, -half_h - 0.5, half_h + 1.5)
+	# Se puede recorrer todo el tablero (los mapas de PC son grandes)
+	cam_focus.x = clampf(cam_focus.x, -half_w - 0.5, half_w + 0.5)
+	cam_focus.y = clampf(cam_focus.y, -half_h - 0.5, half_h + 1.5)
 	var target := Vector3(cam_focus.x, 0, cam_focus.y)
 	camera.look_at_from_position(target + _cam_offset * cam_zoom, target, Vector3.UP)
 
 
-## Botón de girar: rota la vista del tablero 90° cada vez (0° → 90° → 180° → 270°).
-func _rotate_view() -> void:
-	view_rot = (view_rot + 1) % 4
+## Botón de girar (R / Q / E): rota la vista del tablero 90° cada vez.
+func _rotate_view(dir := 1) -> void:
+	view_rot = (view_rot + dir + 4) % 4
 	var from := _cam_offset
 	var to := _cam_base.rotated(Vector3.UP, view_rot * PI * 0.5)
 	var tw := create_tween()
@@ -524,6 +516,7 @@ func _process(delta: float) -> void:
 	queue_redraw()
 	if over:
 		return
+	_keyboard_pan(delta)
 	if coop == "client":
 		_hud_timer -= delta
 		if _hud_timer <= 0.0:
@@ -607,16 +600,130 @@ func _unhandled_input(event: InputEvent) -> void:
 				var b := plane_from_screen(sd.position)
 				cam_focus += (a - b) / T
 				_apply_camera()
+	elif event is InputEventMouseMotion and (event.button_mask & (MOUSE_BUTTON_MASK_RIGHT | MOUSE_BUTTON_MASK_MIDDLE)) != 0:
+		# Clic derecho o central arrastrado: mover la cámara
+		var mm := event as InputEventMouseMotion
+		if mm.relative.length() > 0.0:
+			_right_dragged = _right_dragged or mm.position.distance_to(_right_press) > 6.0
+			var a := plane_from_screen(mm.position - mm.relative)
+			var b := plane_from_screen(mm.position)
+			cam_focus += (a - b) / T
+			_apply_camera()
 	elif event is InputEventMouseMotion and build_id != "" and build_id != HERO_KEY and _touches.is_empty():
 		var hc := _pick_cell(event.position)
 		if _in_grid(hc) and hc != preview_cell:
 			_show_preview(hc)
-	elif event is InputEventMouseButton and event.pressed:
-		# Rueda del ratón (PC) para el zoom
-		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
+	elif event is InputEventMouseButton:
+		var mb := event as InputEventMouseButton
+		if mb.pressed:
+			# Rueda del ratón para el zoom
+			if mb.button_index == MOUSE_BUTTON_WHEEL_UP:
+				_zoom_by(0.9)
+			elif mb.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+				_zoom_by(1.1)
+			elif mb.button_index == MOUSE_BUTTON_RIGHT:
+				_right_press = mb.position
+				_right_dragged = false
+		elif mb.button_index == MOUSE_BUTTON_RIGHT and not _right_dragged:
+			_cancel_action() # clic derecho sin arrastrar: cancela la construcción o la selección
+	elif event is InputEventKey and event.pressed and not event.echo:
+		_on_key((event as InputEventKey).keycode)
+
+
+var _right_press := Vector2.ZERO
+var _right_dragged := false
+const PAN_SPEED := 14.0 # casillas por segundo con WASD / flechas
+
+
+## Cancela lo que se esté haciendo: construir, demoler o la torre seleccionada.
+func _cancel_action() -> bool:
+	if build_id != "":
+		build_id = ""
+		_hide_preview()
+		_update_build_info()
+		_update_highlights()
+		_refresh_hud()
+		return true
+	if demolish_mode:
+		_set_demolish(false)
+		return true
+	if selected != null:
+		_select(null)
+		return true
+	if shop_panel != null and shop_panel.visible:
+		shop_panel.visible = false
+		_update_build_buttons()
+		return true
+	return false
+
+
+## Atajos de teclado (PC).
+func _on_key(k: Key) -> void:
+	match k:
+		KEY_ESCAPE:
+			if not _cancel_action():
+				_open_pause()
+		KEY_SPACE, KEY_N:
+			if not btn_next.disabled:
+				start_next_wave()
+		KEY_1:
+			_set_speed(1)
+		KEY_2:
+			_set_speed(2)
+		KEY_3:
+			_set_speed(3)
+		KEY_R, KEY_E:
+			_rotate_view(1)
+		KEY_Q:
+			_rotate_view(-1)
+		KEY_V:
+			show_all_ranges = not show_all_ranges
+		KEY_B:
+			_toggle_build_menu("progress")
+		KEY_C:
+			_toggle_build_menu("cards")
+		KEY_X:
+			_toggle_demolish()
+		KEY_U:
+			if selected != null:
+				_upgrade_selected()
+		KEY_DELETE, KEY_BACKSPACE:
+			if selected != null and not selected.is_hero:
+				_sell_selected()
+		KEY_F:
+			_open_fortress()
+		KEY_HOME:
+			cam_focus = Vector2.ZERO
+			cam_zoom = 1.0
+			_apply_camera()
+		KEY_EQUAL, KEY_KP_ADD:
 			_zoom_by(0.9)
-		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+		KEY_MINUS, KEY_KP_SUBTRACT:
 			_zoom_by(1.1)
+
+
+## Desplazamiento de la cámara con WASD / flechas (en el sentido de la pantalla).
+func _keyboard_pan(delta: float) -> void:
+	if camera == null or get_viewport().gui_get_focus_owner() is LineEdit:
+		return
+	var dx := 0.0
+	var dy := 0.0
+	if Input.is_physical_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT):
+		dx -= 1.0
+	if Input.is_physical_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT):
+		dx += 1.0
+	if Input.is_physical_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP):
+		dy += 1.0
+	if Input.is_physical_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN):
+		dy -= 1.0
+	if dx == 0.0 and dy == 0.0:
+		return
+	var b := camera.global_transform.basis
+	var right := Vector2(b.x.x, b.x.z).normalized()
+	var fwd := Vector2(-b.z.x, -b.z.z).normalized()
+	var real_dt := delta / maxf(Engine.time_scale, 0.001) # igual de rápido a x1 que a x3
+	cam_focus += (right * dx + fwd * dy) * PAN_SPEED * cam_zoom * real_dt
+	_apply_camera()
 
 
 func _touch_distance() -> float:
@@ -773,11 +880,11 @@ func _upgrade_selected() -> void:
 	if t == null:
 		return
 	if t.is_hero:
-		# Héroes: nivel permanente que se paga con gemas
+		# Héroes: nivel permanente que se paga con oro
 		if t.level >= GameData.HERO_MAX_LEVEL:
 			return
 		if not Meta.level_hero(t.id):
-			_open_gem_shop(Meta.hero_level_cost(t.id))
+			UIKit.toast(ui, "Necesitas %s de oro" % GameData.format_num(Meta.hero_level_cost(t.id)), UIKit.RED)
 			return
 		t.level = Save.hero_level(t.id)
 		spawn_fx("levelup", t.position, T * 0.7, UIKit.GOLD, 1.2)
@@ -791,14 +898,6 @@ func _upgrade_selected() -> void:
 	if gold < cost:
 		UIKit.toast(ui, "Oro insuficiente", UIKit.RED)
 		return
-	var gem_cost := t.upgrade_gem_cost()
-	if gem_cost > 0:
-		if Save.gems() < gem_cost:
-			_open_gem_shop(gem_cost)
-			return
-		Save.spend_gems(gem_cost)
-		evolutions += 1
-		Meta.track("evolve", 1)
 	if coop == "client":
 		Coop.request("upgrade", [t.cell.x, t.cell.y])
 		return
@@ -938,33 +1037,23 @@ func _on_wave_cleared() -> void:
 		var c := WaveGen.coins_for_wave(map_idx, w)
 		coins_earned += c
 		Save.data["coins"] = Save.coins() + c
-		var before := {}
-		for tid in GameData.TOWERS.keys():
-			if Meta.is_progress_tower(tid):
-				before[tid] = Meta.progress_unlocked(tid)
 		Save.set_best_wave(map_idx, w)
 		if coop == "":
 			Online.report_wave(map_idx, w) # ranking semanal (cada 5 oleadas)
-		if w % 10 == 0 or w == 1:
-			Firebase.log_event("wave_cleared", {"map": map_idx, "wave": w})
 		# Bono de gemas la primera vez que se llega a cada múltiplo de 50 en este mapa
 		if w % 50 == 0 and coop == "":
 			var key := "%d:%d" % [map_idx, w]
 			if not Save.data["milestones"].has(key):
 				Save.data["milestones"][key] = true
-				var mg := GameData.milestone_gems(map_idx, w)
-				Save.data["gems"] = Save.gems() + mg
-				UIKit.toast(ui, "¡Oleada %d alcanzada! +%d gemas" % [w, mg], UIKit.GEM)
-		for tid in before.keys():
-			if not before[tid] and Meta.progress_unlocked(tid):
-				UIKit.toast(ui, "¡Nueva torre desbloqueada: %s!" % GameData.TOWERS[tid]["name"], UIKit.GOLD)
-				_rebuild_shop()
+				var mg := GameData.milestone_gold(map_idx, w)
+				Save.data["coins"] = Save.coins() + mg
+				UIKit.toast(ui, "¡Oleada %d alcanzada! +%s oro" % [w, GameData.format_num(mg)], UIKit.GOLD)
 		Save.data["stats"]["waves"] = int(Save.data["stats"]["waves"]) + 1
 		Meta.track("waves", 1)
 		if w == GameData.UNLOCK_WAVE and map_idx + 1 < GameData.MAPS.size() and int(Save.data["unlocked_maps"]) <= map_idx + 1:
 			Save.data["unlocked_maps"] = map_idx + 2
-			Save.data["gems"] = Save.gems() + 50
-			_pause_popup("¡Nuevo mapa!", "Has sobrevivido 100 oleadas.\nDesbloqueado: %s\n+50 gemas\n\nPuedes seguir hasta la oleada 500." % GameData.MAPS[map_idx + 1]["name"])
+			Save.data["coins"] = Save.coins() + 50 * GameData.GEM_GOLD
+			_pause_popup("¡Nuevo mapa!", "Has sobrevivido 100 oleadas.\nDesbloqueado: %s\n+%s oro\n\nPuedes seguir hasta la oleada 500." % [GameData.MAPS[map_idx + 1]["name"], GameData.format_num(50 * GameData.GEM_GOLD)])
 		if w >= GameData.MAX_WAVES or (coop != "" and w >= Coop.MAX_WAVE):
 			if coop != "":
 				_coop_end()
@@ -1077,7 +1166,7 @@ func heal_area(pos: Vector2, r: float, pct: float) -> void:
 func on_enemy_killed(e: Enemy) -> void:
 	enemies.erase(e)
 	spawn_fx("death", e.position, e.radius * 1.4, Color(e.def["color"], 1.0), 0.6)
-	var g := int(ceil(e.gold_value * (1.0 + Save.upgrade_value("gold_kill")) * Meta.event_mult("gold") * (2.0 if bounty_time > 0.0 else 1.0)))
+	var g := int(ceil(e.gold_value * (1.0 + Save.upgrade_value("gold_kill")) * (2.0 if bounty_time > 0.0 else 1.0)))
 	gold += g
 	if coop != "":
 		partner_gold += g
@@ -1091,12 +1180,12 @@ func on_enemy_killed(e: Enemy) -> void:
 		Meta.track("flyers", 1)
 	if e.is_boss:
 		Meta.track("bosses", 1)
-		Meta.start_starter_offer() # momento positivo: se abre la oferta de inicio (48 h)
-		var gems := int(round(GameData.boss_gems(map_idx, wave) * Meta.event_mult("boss_gems")))
-		Save.add_gems(gems)
+		var bg := int(round(GameData.boss_gold(map_idx, wave) * (1.0 + Save.gem_upgrade_value("g_coins"))))
+		Save.add_coins(bg)
+		coins_earned += bg
 		float_text(e.position, "+%d oro" % g, UIKit.GOLD)
-		float_text(e.position + Vector2(0, -26), "+%d gemas" % gems, UIKit.GEM)
-		_boss_banner(e.def["name"], gems)
+		float_text(e.position + Vector2(0, -26), "+%s oro (jefe)" % GameData.format_num(bg), UIKit.GOLD)
+		_boss_banner(e.def["name"], bg)
 		spawn_fx("boss_death", e.position, T * 1.8, Color(1, 0.8, 0.2), 1.6)
 	elif e.elite:
 		float_text(e.position, "+%d" % g, UIKit.GOLD)
@@ -1360,9 +1449,9 @@ func _load_run(run: Dictionary) -> void:
 
 
 # ================================================================ HUD
-const TOP_H := 132.0
+const TOP_H := 84.0
 const SHOP_H := 150.0
-const BAR_H := 96.0 # barra inferior con Construir / Demoler / habilidad
+const BAR_H := 96.0 # barra inferior con Construir / Cartas / Demoler / habilidades
 
 
 func _build_hud() -> void:
@@ -1375,7 +1464,7 @@ func _build_hud() -> void:
 	ui.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hud.add_child(ui)
 	UIKit.apply_theme(ui)
-	var W := GameData.SCREEN.x
+	var W := GameData.screen().x
 
 	# Sombra suave arriba para que las píldoras se lean sobre el mapa
 	var shade := ColorRect.new()
@@ -1384,29 +1473,26 @@ func _build_hud() -> void:
 	shade.size = Vector2(W, TOP_H - 2.0)
 	ui.add_child(shade)
 
-	# Fila 1: pausa + píldoras de vidas / oro / oleada
-	var row := UIKit.hbox(8)
-	row.position = Vector2(10, 8)
-	row.size = Vector2(W - 20.0, 60)
+	# Una sola fila (pantalla ancha): pausa, vidas, oro, oleada ... botones y siguiente oleada
+	var row := UIKit.hbox(10)
+	row.position = Vector2(12, 10)
+	row.size = Vector2(W - 24.0, 62)
 	ui.add_child(row)
 	var pause := UIKit.icon_button("pause", UIKit.NAVY, 60, 0.46)
+	pause.tooltip_text = "Pausa (Esc)"
 	pause.pressed.connect(_open_pause)
 	row.add_child(pause)
-	var p_lives := UIKit.pill("heart", "", 24, Color.WHITE, 112)
+	var p_lives := UIKit.pill("heart", "", 24, Color.WHITE, 120)
 	p_lives.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	p_lives.tooltip_text = "Vida de la fortaleza"
 	lbl_lives = p_lives.get_meta("label")
 	row.add_child(p_lives)
-	var p_gold := UIKit.pill("coin", "", 22, Color(1.0, 0.9, 0.55), 128)
+	var p_gold := UIKit.pill("coin", "", 24, Color(1.0, 0.9, 0.55), 170)
 	p_gold.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	p_gold.tooltip_text = "Oro"
 	lbl_gold = p_gold.get_meta("label")
 	row.add_child(p_gold)
-	# Gemas disponibles, siempre a la vista junto al oro
-	var p_gems := UIKit.pill("gem", "", 22, Color(0.7, 0.88, 1.0), 104)
-	p_gems.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	lbl_gems = p_gems.get_meta("label")
-	row.add_child(p_gems)
-	var p_wave := UIKit.pill("flag", "", 17, Color.WHITE, 0)
-	p_wave.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var p_wave := UIKit.pill("flag", "", 19, Color.WHITE, 520)
 	p_wave.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	lbl_wave = p_wave.get_meta("label")
 	lbl_wave.add_theme_font_override("font", UIKit.font(true))
@@ -1415,61 +1501,52 @@ func _build_hud() -> void:
 	var wave_box: HBoxContainer = p_wave.get_child(0)
 	wave_box.remove_child(lbl_wave)
 	wv.add_child(lbl_wave)
-	lbl_next = UIKit.label("", 13, UIKit.PARCHMENT)
+	lbl_next = UIKit.label("", 15, UIKit.PARCHMENT)
 	lbl_next.clip_text = true
 	lbl_next.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	lbl_next.custom_minimum_size = Vector2(100, 0)
+	lbl_next.custom_minimum_size = Vector2(420, 0)
 	wv.add_child(lbl_next)
 	wave_box.add_child(wv)
 	row.add_child(p_wave)
-
-	# Fila 2: monedas ganadas + botones redondos + siguiente oleada
-	var row2 := UIKit.hbox(8)
-	row2.position = Vector2(10, 72)
-	row2.size = Vector2(W - 20.0, 56)
-	ui.add_child(row2)
-	# Configuración siempre a mano durante la partida (la pausa mientras está abierta)
-	var gear := UIKit.icon_button("gear", UIKit.WOOD, 56, 0.6)
-	gear.pressed.connect(func() -> void:
-		if over:
-			return
-		var was_paused := get_tree().paused
-		get_tree().paused = true
-		var sp := SettingsPanel.open(ui, true)
-		sp.tree_exited.connect(func() -> void:
-			if is_inside_tree() and not was_paused:
-				get_tree().paused = false))
-	row2.add_child(gear)
 	var p_coins := UIKit.pill("coin_bag", "", 17, Color(1.0, 0.88, 0.6), 0)
 	p_coins.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	lbl_coins = p_coins.get_meta("label")
-	row2.add_child(p_coins)
+	row.add_child(p_coins)
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row2.add_child(spacer)
-	var ranges := UIKit.icon_button("eye", UIKit.NAVY, 56, 0.6)
+	row.add_child(spacer)
+	# Configuración siempre a mano durante la partida (la pausa mientras está abierta)
+	var gear := UIKit.icon_button("gear", UIKit.WOOD, 58, 0.6)
+	gear.tooltip_text = "Configuración"
+	gear.pressed.connect(_open_settings_in_battle)
+	row.add_child(gear)
+	var ranges := UIKit.icon_button("eye", UIKit.NAVY, 58, 0.6)
+	ranges.tooltip_text = "Ver el alcance de todas las torres (V)"
 	ranges.pressed.connect(func() -> void:
 		show_all_ranges = not show_all_ranges
 		UIKit.set_button_color(ranges, UIKit.TEAL if show_all_ranges else UIKit.NAVY, 28))
-	row2.add_child(ranges)
-	var rot := UIKit.icon_button("auto", UIKit.NAVY, 56, 0.6)
-	rot.tooltip_text = "Girar la vista 90°"
+	row.add_child(ranges)
+	var rot := UIKit.icon_button("auto", UIKit.NAVY, 58, 0.6)
+	rot.tooltip_text = "Girar la vista 90° (R)"
 	rot.pressed.connect(_rotate_view)
-	row2.add_child(rot)
-	btn_auto = UIKit.icon_button("auto", UIKit.NAVY, 56, 0.6)
+	row.add_child(rot)
+	btn_auto = UIKit.icon_button("auto", UIKit.NAVY, 58, 0.6)
 	btn_auto.pressed.connect(func() -> void:
 		auto_wave = not auto_wave
 		_refresh_hud())
-	row2.add_child(btn_auto)
+	row.add_child(btn_auto)
 	btn_auto.visible = false # oleadas siempre automáticas
-	btn_speed = UIKit.button("x1", UIKit.NAVY, 22, Vector2(56, 56))
+	btn_speed = UIKit.button("x1", UIKit.NAVY, 22, Vector2(64, 58))
+	btn_speed.tooltip_text = "Velocidad (1, 2, 3)"
 	UIKit.set_button_color(btn_speed, UIKit.NAVY, 28)
 	btn_speed.pressed.connect(_cycle_speed)
-	row2.add_child(btn_speed)
-	btn_next = UIKit.button("Iniciar oleada", UIKit.GREEN, 18, Vector2(200, 56))
+	row.add_child(btn_speed)
+	btn_next = UIKit.button("Iniciar oleada", UIKit.GREEN, 20, Vector2(250, 58))
+	btn_next.tooltip_text = "Siguiente oleada (Espacio)"
 	btn_next.pressed.connect(start_next_wave)
-	row2.add_child(btn_next)
+	row.add_child(btn_next)
+
 
 	# Tienda de torres abajo (dock redondeado con desplazamiento horizontal)
 	var bottom := PanelContainer.new()
@@ -1483,7 +1560,7 @@ func _build_hud() -> void:
 	bs.content_margin_top = 8
 	bs.content_margin_bottom = 4
 	bottom.add_theme_stylebox_override("panel", bs)
-	bottom.position = Vector2(0, GameData.SCREEN.y - BAR_H - SHOP_H)
+	bottom.position = Vector2(0, GameData.screen().y - BAR_H - SHOP_H)
 	bottom.size = Vector2(W, SHOP_H)
 	bottom.visible = false
 	ui.add_child(bottom)
@@ -1504,7 +1581,7 @@ func _build_hud() -> void:
 	bar_style.content_margin_top = 10
 	bar_style.content_margin_bottom = 10
 	bar.add_theme_stylebox_override("panel", bar_style)
-	bar.position = Vector2(0, GameData.SCREEN.y - BAR_H)
+	bar.position = Vector2(0, GameData.screen().y - BAR_H)
 	bar.size = Vector2(W, BAR_H)
 	ui.add_child(bar)
 	var bar_row := UIKit.hbox(10)
@@ -1557,12 +1634,10 @@ func _build_hud() -> void:
 ## encima de la partida (que se pausa) y al cerrarlas se vuelve a jugar.
 func _build_side_col() -> void:
 	side_col = UIKit.vbox(4)
-	side_col.position = Vector2(GameData.SCREEN.x - 70.0, 140)
+	side_col.position = Vector2(GameData.screen().x - 72.0, TOP_H + 12.0)
 	ui.add_child(side_col)
 	for it in BATTLE_SIDE:
 		var id: String = it[0]
-		if id != "packs" and not Meta.feature_unlocked(id):
-			continue
 		var holder := Control.new()
 		holder.custom_minimum_size = Vector2(62, 62)
 		var b := UIKit.icon_button(it[2], it[3], 58, 0.62)
@@ -1783,12 +1858,9 @@ func _rebuild_shop() -> void:
 		ids.append_array(h_missing.map(func(h): return HERO_KEY + ":" + h))
 		ids.append_array(missing)
 	else:
-		# Menú normal: todas las torres que se desbloquean jugando, en orden de desbloqueo
-		var prog: Array = GameData.TOWERS.keys().filter(func(id): return Meta.is_progress_tower(id))
-		prog.sort_custom(func(a, b) -> bool:
-			var ua: Dictionary = GameData.TOWERS[a]["unlock"]
-			var ub: Dictionary = GameData.TOWERS[b]["unlock"]
-			return int(ua["map"]) * 1000 + int(ua["wave"]) < int(ub["map"]) * 1000 + int(ub["wave"]))
+		# Menú normal: torres de oro. Primero las que tienes (por rareza), luego las que faltan (se consiguen en sobres)
+		var prog: Array = GameData.sort_by_rarity(GameData.TOWERS.keys().filter(func(id): return Meta.is_progress_tower(id)), true)
+		prog = prog.filter(func(id): return Meta.tower_available(id)) + prog.filter(func(id): return not Meta.tower_available(id))
 		ids.append_array(prog)
 	for id in ids:
 		var is_hero_btn: bool = id.begins_with(HERO_KEY)
@@ -1824,12 +1896,6 @@ func _rebuild_shop() -> void:
 		v.add_child(nl)
 		if locked:
 			var lock_txt := "En sobres"
-			if not is_hero_btn and Meta.is_progress_tower(id):
-				var u: Dictionary = GameData.TOWERS[id]["unlock"]
-				if int(u["map"]) == map_idx or int(u["wave"]) > 1:
-					lock_txt = ("Oleada %d" % int(u["wave"])) if int(u["map"]) == map_idx else ("Mapa %d · Ol. %d" % [int(u["map"]) + 1, int(u["wave"])])
-				else:
-					lock_txt = "Mapa %d" % (int(u["map"]) + 1)
 			var lp := UIKit.pill("lock", lock_txt, 13, Color(0.85, 0.85, 0.9), 0, Color(0, 0, 0, 0.5))
 			lp.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 			v.add_child(lp)
@@ -1993,7 +2059,6 @@ func _refresh_hud() -> void:
 		UIKit.pop(lbl_gold, 1.18)
 	lbl_lives.text = t_lives
 	lbl_gold.text = t_gold
-	lbl_gems.text = GameData.format_num(Save.gems())
 	lbl_wave.text = "Oleada %d / %d" % [wave, GameData.MAX_WAVES]
 	var nxt := WaveGen.preview_text(map_idx, wave + 1)
 	lbl_next.text = ("Siguiente: " + nxt) if nxt != "" else "Récord: %d" % Save.best_wave(map_idx)
@@ -2164,12 +2229,12 @@ func _update_info_panel() -> void:
 		tm.pressed.connect(_cycle_target)
 		row.add_child(tm)
 	_update_info_buttons()
-	# Coloca el panel en la mitad opuesta a la torre.
+	# Coloca el panel en el lado (izquierdo o derecho) opuesto a la torre.
 	info_panel.custom_minimum_size = Vector2(704, 0)
 	info_panel.reset_size()
-	var sy := screen_pos(t.position).y
-	var y := TOP_H + 8.0 if sy > 700.0 else GameData.SCREEN.y - BAR_H - 330.0
-	info_panel.position = Vector2(8, y)
+	var sx := screen_pos(t.position).x
+	var x := 16.0 if sx > GameData.screen().x * 0.5 else GameData.screen().x - 704.0 - 90.0
+	info_panel.position = Vector2(x, TOP_H + 10.0)
 	if not was_visible:
 		UIKit.pop_in(info_panel, 0.0, 0.85)
 
@@ -2190,76 +2255,30 @@ func _update_info_buttons() -> void:
 		UIKit.set_button_content(_info_up, "star", "NIVEL MÁXIMO", 19, 32)
 	elif selected.is_hero:
 		_info_up.disabled = false
-		UIKit.set_button_content(_info_up, "gem", "Subir nivel (permanente)
-%d gemas" % selected.upgrade_gem_cost(), 15, 30)
+		UIKit.set_button_content(_info_up, "coin", "Subir nivel (permanente)\n%s oro" % GameData.format_num(Meta.hero_level_cost(selected.id)), 15, 30)
 	else:
 		_info_up.disabled = gold < cost
-		var gem_cost := selected.upgrade_gem_cost()
-		if gem_cost > 0:
-			UIKit.set_button_content(_info_up, "gem", "Evolucionar\n%s oro + %d gemas" % [GameData.format_num(cost), gem_cost], 16, 30)
-		elif selected.level == GameData.MAX_TOWER_LEVEL - 1:
+		if selected.level == GameData.MAX_TOWER_LEVEL - 1:
 			UIKit.set_button_content(_info_up, "star", "Maestría\n%s oro" % GameData.format_num(cost), 18, 34)
 		else:
-			UIKit.set_button_content(_info_up, "upgrade", "Mejorar\n%s oro" % GameData.format_num(cost), 19, 34)
+			UIKit.set_button_content(_info_up, "upgrade", "Mejorar (U)\n%s oro" % GameData.format_num(cost), 19, 34)
 
 
-## Tienda rápida de gemas (se abre al intentar subir un héroe sin gemas suficientes).
-var _gem_popup: Control
-func _open_gem_shop(needed: int) -> void:
-	if _gem_popup != null and is_instance_valid(_gem_popup):
-		return # ya hay una abierta: no se apilan ventanas
+## Configuración durante la partida (la pausa mientras está abierta).
+func _open_settings_in_battle() -> void:
+	if over:
+		return
+	var was_paused := get_tree().paused
 	get_tree().paused = true
-	var v := UIKit.vbox(10)
-	var head := UIKit.label("Necesitas %d gemas.\nTienes %d." % [needed, Save.gems()], 21, UIKit.PARCHMENT, HORIZONTAL_ALIGNMENT_CENTER)
-	head.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	v.add_child(head)
-	var grid := GridContainer.new()
-	grid.columns = 2
-	grid.add_theme_constant_override("h_separation", 10)
-	grid.add_theme_constant_override("v_separation", 10)
-	v.add_child(grid)
-	for pid in ["gems_100", "gems_550", "gems_1200", "gems_2600"]:
-		var p: Dictionary = GameData.IAP_PRODUCTS[pid]
-		var b := UIKit.button("", UIKit.BLUE, 17, Vector2(300, 74))
-		UIKit.set_button_content(b, "gem", "%s\n%s" % [p["desc"], p["price"]], 17, 30)
-		b.pressed.connect(func() -> void:
-			IAP.purchase(pid))
-		grid.add_child(b)
-	var ad_btn := UIKit.button("", UIKit.PURPLE, 17, Vector2(0, 64))
-	UIKit.set_button_content(ad_btn, "ad", "Ver anuncio: +5 gemas", 18, 30)
-	ad_btn.disabled = not Ads.can_show_rewarded()
-	ad_btn.pressed.connect(func() -> void:
-		Ads.show_rewarded("gems_evolve", func() -> void:
-			Save.add_gems(5)
-			UIKit.toast(ui, "+5 gemas", UIKit.GEM)))
-	v.add_child(ad_btn)
-	_gem_popup = UIKit.popup(ui, "Gemas insuficientes", v, [["Cerrar", func() -> void:
-		get_tree().paused = false
-		_update_info_panel(), UIKit.GREY]], 680)
+	var sp := SettingsPanel.open(ui, true)
+	sp.tree_exited.connect(func() -> void:
+		if is_inside_tree() and not was_paused:
+			get_tree().paused = false)
 
 
+## Velocidad x1 → x2 → x3 (en PC sin restricciones).
 func _cycle_speed() -> void:
-	var next := speed + 1
-	if next > 3:
-		next = 1
-	if next == 3 and not _speed3_allowed():
-		var l := UIKit.label("La velocidad x3 está incluida en\n'Sin Anuncios'.\nTambién puedes ver un anuncio\ny usarla 30 minutos.", 20, UIKit.PARCHMENT, HORIZONTAL_ALIGNMENT_CENTER)
-		get_tree().paused = true
-		UIKit.popup(ui, "Velocidad x3", l, [
-			["Ver anuncio", func() -> void:
-				get_tree().paused = false
-				Ads.show_rewarded("speed3", func() -> void:
-					Save.data["speed3_until"] = Save.now() + SPEED3_AD_DURATION
-					Save.save_game()
-					_set_speed(3)), UIKit.GREEN],
-			["Ahora no", func() -> void: get_tree().paused = false, UIKit.GREY],
-		])
-		next = 1
-	_set_speed(next)
-
-
-func _speed3_allowed() -> bool:
-	return Ads.has_no_ads() or Save.now() < int(Save.data.get("speed3_until", 0))
+	_set_speed(speed % 3 + 1)
 
 
 func _set_speed(s: int) -> void:
@@ -2294,6 +2313,11 @@ func _open_pause() -> void:
 	v.add_child(UIKit.ink("La partida se guarda al terminar cada oleada.", 16, UIKit.INK_SOFT, HORIZONTAL_ALIGNMENT_CENTER))
 	UIKit.popup(ui, "Pausa", v, [
 		["Continuar", func() -> void: get_tree().paused = false, UIKit.GREEN],
+		["Salir al menú", func() -> void:
+			if coop != "":
+				_coop_leave()
+				return
+			_go_menu(), UIKit.BLUE],
 		["Configuración", func() -> void:
 			var sp := SettingsPanel.open(ui, true)
 			sp.tree_exited.connect(func() -> void:
@@ -2340,20 +2364,9 @@ func _show_game_over() -> void:
 	var buttons: Array = []
 	# Revivir: gratis, sigue la partida con media vida de la fortaleza.
 	buttons.append(["Revivir", _revive, UIKit.GREEN])
-	# Revivir con anuncio: además duplica las monedas ganadas hasta esta oleada.
-	if not doubled and coins_earned > 0:
-		buttons.append(["Revivir (anuncio)\nx2 oro", func() -> void:
-			Ads.show_rewarded("revive_x2", func() -> void:
-				doubled = true
-				Save.add_coins(coins_earned)
-				UIKit.toast(ui, "+%s oro (x2)" % GameData.format_num(coins_earned), UIKit.GOLD)
-				_revive(), func(m: String) -> void:
-				_show_game_over()
-				UIKit.toast(ui, m, UIKit.RED)), UIKit.PURPLE])
 	buttons.append(["Salir", func() -> void:
 		Save.set_run(map_idx, {})
-		_go_menu()
-		Ads.maybe_show_interstitial(), UIKit.RED])
+		_go_menu(), UIKit.RED])
 	UIKit.popup(ui, "Derrota", v, buttons, 760)
 
 
@@ -2376,14 +2389,14 @@ func _victory() -> void:
 	Engine.time_scale = 1.0
 	get_tree().paused = true
 	Save.set_run(map_idx, {})
-	Save.add_gems(500)
+	Save.add_coins(500 * GameData.GEM_GOLD)
 	var l := UIKit.vbox(10)
 	var ic := UIIcon.make("trophy", 110)
 	ic.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	l.add_child(ic)
 	UIKit.pulse(ic, 1.08)
 	l.add_child(UIKit.ink("¡Has resistido las 500 oleadas de %s!" % map_def["name"], 22, UIKit.INK, HORIZONTAL_ALIGNMENT_CENTER, true))
-	var g := UIKit.icon_label("gem", "+500 gemas", 26, UIKit.BLUE.darkened(0.3), 40, true)
+	var g := UIKit.icon_label("coin", "+%s oro" % GameData.format_num(500 * GameData.GEM_GOLD), 26, UIKit.AMBER.darkened(0.3), 40, true)
 	g.alignment = BoxContainer.ALIGNMENT_CENTER
 	l.add_child(g)
 	UIKit.popup(ui, "¡VICTORIA LEGENDARIA!", l, [["Volver", _go_menu, UIKit.GREEN]])
@@ -2678,7 +2691,7 @@ func coop_partner_left() -> void:
 		_coop_end()
 
 
-## Fin de la partida cooperativa: gemas según la oleada alcanzada (máximo 100).
+## Fin de la partida cooperativa: oro según la oleada alcanzada (máximo 100).
 func _coop_end() -> void:
 	if over:
 		return
@@ -2691,21 +2704,11 @@ func _coop_end() -> void:
 	ic.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	v.add_child(ic)
 	v.add_child(UIKit.ink("Llegasteis a la oleada %d de %d" % [reached, Coop.MAX_WAVE], 22, UIKit.INK, HORIZONTAL_ALIGNMENT_CENTER, true))
-	var reward := Meta.coop_reward(reached)
 	var buttons: Array = []
-	if Meta.coop_runs_left() > 0:
-		var got := Meta.claim_coop_reward(reached)
-		var g := UIKit.icon_label("gem", "+%d gemas" % got, 26, UIKit.BLUE.darkened(0.3), 40, true)
-		g.alignment = BoxContainer.ALIGNMENT_CENTER
-		v.add_child(g)
-		v.add_child(UIKit.ink("Partidas con recompensa hoy: %d restantes" % Meta.coop_runs_left(), 15, UIKit.INK_SOFT, HORIZONTAL_ALIGNMENT_CENTER))
-	else:
-		v.add_child(UIKit.ink("Ya usaste las %d partidas con recompensa de hoy." % Meta.COOP_RUNS_PER_DAY, 17, UIKit.INK_SOFT, HORIZONTAL_ALIGNMENT_CENTER))
-		if reward > 0:
-			buttons.append(["Ver anuncio: +%d gemas" % reward, func() -> void:
-				Ads.show_rewarded("coop_reward", func() -> void:
-					Meta.claim_coop_reward(reached, true)
-					_coop_leave()), UIKit.PURPLE])
+	var got := Meta.claim_coop_reward(reached)
+	var g := UIKit.icon_label("coin", "+%s oro" % GameData.format_num(got), 26, UIKit.AMBER.darkened(0.3), 40, true)
+	g.alignment = BoxContainer.ALIGNMENT_CENTER
+	v.add_child(g)
 	buttons.append(["Volver", _coop_leave, UIKit.GREEN])
 	UIKit.popup(ui, "Defensa cooperativa", v, buttons, 640)
 
@@ -2716,42 +2719,27 @@ func _coop_leave() -> void:
 
 
 
-## Cartel "¡JEFE DERROTADO!" con las gemas ganadas y la opción de duplicarlas con un anuncio
-## (automático con "Sin Anuncios"). No pausa la partida y desaparece solo.
-func _boss_banner(boss_name: String, gems: int) -> void:
-	Audio.sfx("gem", -2.0, 0.0)
+## Cartel "¡JEFE DERROTADO!" con el oro ganado.
+## No pausa la partida y desaparece solo.
+func _boss_banner(boss_name: String, gold_won: int) -> void:
+	Audio.sfx("coin", -2.0, 0.0)
 	var card := UIKit.card(UIKit.CREAM, 26)
 	card.process_mode = Node.PROCESS_MODE_ALWAYS
 	card.custom_minimum_size = Vector2(560, 0)
-	card.position = Vector2(80, 300)
+	card.position = Vector2((GameData.screen().x - 560.0) * 0.5, 160)
 	var v := UIKit.vbox(6)
 	card.add_child(v)
 	var rib := UIKit.ribbon("¡JEFE DERROTADO!", UIKit.RED, 26)
 	rib.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	v.add_child(rib)
 	v.add_child(UIKit.ink(boss_name, 24, UIKit.INK, HORIZONTAL_ALIGNMENT_CENTER, true))
-	var reward := UIKit.icon_label("gem", "+%d gemas" % gems, 28, UIKit.BLUE.darkened(0.3), 40, true)
+	var reward := UIKit.icon_label("coin", "+%s oro" % GameData.format_num(gold_won), 28, UIKit.AMBER.darkened(0.3), 40, true)
 	reward.alignment = BoxContainer.ALIGNMENT_CENTER
 	v.add_child(reward)
-	if Ads.has_no_ads():
-		Save.add_gems(gems)
-		v.add_child(UIKit.ink("x2 automático: +%d gemas más" % gems, 18, UIKit.GREEN.darkened(0.3), HORIZONTAL_ALIGNMENT_CENTER, true))
-	else:
-		var b := UIKit.button("", UIKit.PURPLE, 20, Vector2(360, 64))
-		UIKit.set_button_content(b, "ad", "x2 gemas con anuncio", 20, 30)
-		b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		b.disabled = not Ads.can_show_rewarded()
-		b.pressed.connect(func() -> void:
-			b.disabled = true
-			Ads.show_rewarded("boss_x2", func() -> void:
-				Save.add_gems(gems)
-				UIKit.toast(ui, "+%d gemas" % gems, UIKit.GEM)
-				if is_instance_valid(card):
-					card.queue_free(), func(_m: String) -> void:
-				if is_instance_valid(b):
-					b.disabled = false))
-		v.add_child(b)
-	# No se cierra solo: el jugador decide con "Cerrar" (o viendo el anuncio)
+	# Se cierra solo a los pocos segundos (o con "Cerrar")
+	get_tree().create_timer(5.0, true, false, true).timeout.connect(func() -> void:
+		if is_instance_valid(card):
+			card.queue_free())
 	var close_b := UIKit.button("Cerrar", UIKit.GREY, 18, Vector2(200, 52))
 	close_b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	close_b.pressed.connect(func() -> void:
@@ -2767,7 +2755,7 @@ func _boss_banner(boss_name: String, gems: int) -> void:
 
 
 ## La Fortaleza desde la partida (tocando el castillo): las mismas mejoras permanentes
-## del menú, con monedas o gemas. Se aplican al momento.
+## del menú, con oro. Se aplican al momento.
 func _open_fortress() -> void:
 	if over or coop == "client":
 		return
@@ -2777,7 +2765,7 @@ func _open_fortress() -> void:
 	var scroll := ScrollContainer.new()
 	scroll.scroll_deadzone = 16 # un clic con temblor no es un arrastre
 	UIKit.drag_anywhere(scroll)
-	scroll.custom_minimum_size = Vector2(640, 760)
+	scroll.custom_minimum_size = Vector2(700, 640)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	var list := UIKit.vbox(8)
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -2786,17 +2774,17 @@ func _open_fortress() -> void:
 	for id in GameData.UPGRADES.keys():
 		var def: Dictionary = GameData.UPGRADES[id]
 		list.add_child(_fortress_row(def["name"], def["desc"], Save.upgrade_level(id), int(def["max"]), "coin", Meta.upgrade_cost(id), Save.coins(), func() -> bool: return Meta.buy_upgrade(id)))
-	list.add_child(UIKit.ink("Mejoras con gemas", 20, UIKit.BLUE.darkened(0.3), HORIZONTAL_ALIGNMENT_CENTER, true))
+	list.add_child(UIKit.ink("Mejoras especiales", 20, UIKit.BLUE.darkened(0.3), HORIZONTAL_ALIGNMENT_CENTER, true))
 	for id in GameData.GEM_UPGRADES.keys():
 		var def: Dictionary = GameData.GEM_UPGRADES[id]
-		list.add_child(_fortress_row(def["name"], def["desc"], Save.gem_upgrade_level(id), int(def["max"]), "gem", Meta.gem_upgrade_cost(id), Save.gems(), func() -> bool: return Meta.buy_gem_upgrade(id)))
-	list.add_child(UIKit.ink("Entrenamiento de torres (gemas)", 20, UIKit.PURPLE.darkened(0.3), HORIZONTAL_ALIGNMENT_CENTER, true))
+		list.add_child(_fortress_row(def["name"], def["desc"], Save.gem_upgrade_level(id), int(def["max"]), "coin", Meta.gem_upgrade_cost(id), Save.coins(), func() -> bool: return Meta.buy_gem_upgrade(id)))
+	list.add_child(UIKit.ink("Entrenamiento de torres", 20, UIKit.PURPLE.darkened(0.3), HORIZONTAL_ALIGNMENT_CENTER, true))
 	list.add_child(UIKit.ink("Nivel con el que se construye cada torre, en todos los mapas", 15, UIKit.INK_SOFT, HORIZONTAL_ALIGNMENT_CENTER))
 	for id in GameData.TOWERS.keys():
 		if not Meta.tower_available(id) or not Meta.is_progress_tower(id):
 			continue
 		var tdef: Dictionary = GameData.TOWERS[id]
-		list.add_child(_fortress_row(tdef["name"], "Se construye en nivel %d" % Meta.tower_start_level(id), Save.tower_train_level(id), GameData.TOWER_TRAIN_MAX, "gem", Meta.tower_train_cost(id), Save.gems(), func() -> bool: return Meta.buy_tower_train(id)))
+		list.add_child(_fortress_row(tdef["name"], "Se construye en nivel %d" % Meta.tower_start_level(id), Save.tower_train_level(id), GameData.TOWER_TRAIN_MAX, "coin", Meta.tower_train_cost(id), Save.coins(), func() -> bool: return Meta.buy_tower_train(id)))
 	_fortress_popup = UIKit.popup(ui, "La Fortaleza", scroll, [["Volver a la batalla", func() -> void:
 		get_tree().paused = false, UIKit.GREEN]], 690)
 

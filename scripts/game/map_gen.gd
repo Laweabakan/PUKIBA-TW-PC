@@ -17,15 +17,15 @@ extends RefCounted
 ##   exit: Vector2i (punto final fuera del tablero, bajo el castillo)
 ##   theme: String (id de la temática del mapa)
 
-const VERSION := 2 # cambiar si se altera la generación (invalida partidas guardadas)
+const VERSION := 3 # cambiar si se altera la generación (invalida partidas guardadas)
 
-## Disposición de cada mapa: cada mapa es un poco más grande y complejo que el anterior
-## (más casillas, más entradas, más agua y obstáculos y caminos con más curvas).
+## Disposición de cada mapa (versión de PC): tableros más grandes que en el móvil, con más
+## entradas (más caminos) y cada mapa algo más grande y complejo que el anterior.
 static func layout(map_idx: int) -> Dictionary:
 	var i := clampi(map_idx, 0, 19)
-	var cols := 11 + i / 5                     # 11 -> 14 columnas
-	var rows := 18 + int(i * 0.45)             # 18 -> 26 filas
-	var entries := 1 if i < 3 else (2 if i < 10 else 3)
+	var cols := 13 + i / 4                     # 13 -> 17 columnas (alto de la pantalla)
+	var rows := 24 + int(i * 0.6)              # 24 -> 35 filas (ancho de la pantalla)
+	var entries := 2 if i < 3 else (3 if i < 10 else 4)
 	var water := "river" if i % 2 == 0 else "lake"
 	if i >= 12:
 		water = "both"
@@ -93,15 +93,19 @@ static func _try_generate(map_idx: int, layout: Dictionary, rng: RandomNumberGen
 		if n_entries == 2:
 			bands = [[1, jx - 2], [jx + 2, cols - 2]]
 		else:
-			var third := cols / 3
-			bands = [[1, third - 1], [third + 1, cols - third - 2], [cols - third, cols - 2]]
+			# 3 o más entradas: franjas iguales separadas por una columna libre
+			var wdt := cols / n_entries
+			for k in n_entries:
+				var lo_k := k * wdt + 1
+				var hi_k := (k + 1) * wdt - 1 if k < n_entries - 1 else cols - 2
+				bands.append([lo_k, hi_k])
 		for b in bands.size():
 			var lo: int = bands[b][0]
 			var hi: int = bands[b][1]
 			if hi - lo < 1:
 				return {}
 			var start: Vector2i
-			var side_entry := n_entries == 3 and b != 1 and rng.randf() < 0.5
+			var side_entry := n_entries >= 3 and (b == 0 or b == bands.size() - 1) and rng.randf() < 0.5
 			if side_entry:
 				# Entrada lateral (por la pared izquierda o derecha)
 				var ey := rng.randi_range(1, maxi(2, jy / 3))

@@ -6,7 +6,13 @@ const TILE := 72
 # Tamaño del tablero del mapa actual (lo fija la partida al cargar el mapa; ver MapGen).
 var COLS := 11
 var ROWS := 18
-const SCREEN := Vector2(720, 1280)
+const SCREEN := Vector2(1920, 1080) # tamaño base; el real (ventana con otra proporción) lo da screen()
+
+
+## Tamaño real del área de juego (con stretch "expand" puede ser algo más ancho o alto que SCREEN).
+func screen() -> Vector2:
+	var vp := get_viewport()
+	return vp.get_visible_rect().size if vp != null else SCREEN
 const GRID_OFFSET := Vector2(0, 72)
 const MAX_WAVES := 500
 const UNLOCK_WAVE := 100
@@ -83,7 +89,7 @@ const TOWERS := {
 		"perks": {"splash": 0.8, "dot": 20.0, "dot_dur": 3.0},
 	},
 	"frost": {
-		"name": "Mago de Hielo", "rarity": "common", "unlock": {"map": 2, "wave": 60}, "cost": 90,
+		"name": "Mago de Hielo", "rarity": "uncommon", "unlock": {"map": 2, "wave": 60}, "cost": 90,
 		"damage": 6.0, "rate": 0.4, "range": 2.6, "dmg_type": "ice",
 		"air": true, "ground": true, "stun_chance": 1.0, "stun_dur": 1.0, "prefer": "unfrozen",
 		"projectile": "ice", "color": Color(0.5, 0.85, 1.0),
@@ -120,7 +126,7 @@ const TOWERS := {
 		"perks": {"stun_chance": 0.25, "stun_dur": 1.0},
 	},
 	"ballista": {
-		"name": "Balista Real", "rarity": "common", "unlock": {"map": 3, "wave": 40}, "cost": 140,
+		"name": "Balista Real", "rarity": "uncommon", "unlock": {"map": 3, "wave": 40}, "cost": 140,
 		"damage": 42.0, "rate": 0.5, "range": 3.4, "dmg_type": "physical",
 		"air": true, "ground": false, "air_bonus": 2.0, "projectile": "bolt",
 		"color": Color(0.6, 0.45, 0.25),
@@ -129,7 +135,7 @@ const TOWERS := {
 		"perks": {"air_bonus": 3.5, "crit_bonus": 0.2},
 	},
 	"crossbow": {
-		"name": "Torre de Ballesteros", "rarity": "common", "unlock": {"map": 1, "wave": 60}, "cost": 120,
+		"name": "Torre de Ballesteros", "rarity": "uncommon", "unlock": {"map": 1, "wave": 60}, "cost": 120,
 		"damage": 50.0, "rate": 0.45, "range": 2.8, "dmg_type": "physical",
 		"air": true, "ground": true, "armor_break": 0.4, "detect": true, "projectile": "bolt",
 		"color": Color(0.55, 0.5, 0.45),
@@ -148,7 +154,7 @@ const TOWERS := {
 		"perks": {"armor_break": 0.5, "stun_chance": 0.25, "stun_dur": 0.7},
 	},
 	"bell": {
-		"name": "Campanario", "rarity": "common", "unlock": {"map": 2, "wave": 30}, "cost": 130,
+		"name": "Campanario", "rarity": "uncommon", "unlock": {"map": 2, "wave": 30}, "cost": 130,
 		"damage": 6.0, "rate": 0.8, "range": 2.2, "dmg_type": "holy",
 		"air": true, "ground": true, "speed_aura": 0.15, "aura_range": 1.6, "projectile": "holy",
 		"color": Color(1.0, 0.85, 0.45),
@@ -157,7 +163,7 @@ const TOWERS := {
 		"perks": {"speed_aura": 0.3, "aura_range": 2.1},
 	},
 	"watch": {
-		"name": "Atalaya del Vigía", "rarity": "common", "unlock": {"map": 4, "wave": 30}, "cost": 110,
+		"name": "Atalaya del Vigía", "rarity": "uncommon", "unlock": {"map": 4, "wave": 30}, "cost": 110,
 		"damage": 7.0, "rate": 1.0, "range": 3.8, "dmg_type": "physical",
 		"air": true, "ground": true, "detect": true, "projectile": "arrow",
 		"color": Color(0.6, 0.8, 0.5),
@@ -166,7 +172,7 @@ const TOWERS := {
 		"perks": {"crit_bonus": 0.25},
 	},
 	"tar": {
-		"name": "Catapulta de Brea", "rarity": "common", "unlock": {"map": 5, "wave": 40}, "cost": 150,
+		"name": "Catapulta de Brea", "rarity": "rare", "unlock": {"map": 5, "wave": 40}, "cost": 150,
 		"damage": 14.0, "rate": 0.55, "range": 2.6, "dmg_type": "fire",
 		"air": false, "ground": true, "splash": 0.8, "slow": 0.45, "slow_dur": 3.0, "dot": 6.0, "dot_dur": 3.0,
 		"projectile": "rock", "color": Color(0.25, 0.2, 0.18),
@@ -175,7 +181,7 @@ const TOWERS := {
 		"perks": {"splash": 1.1, "dot": 16.0},
 	},
 	"mortar": {
-		"name": "Bombarda Real", "rarity": "common", "unlock": {"map": 6, "wave": 40}, "cost": 220,
+		"name": "Bombarda Real", "rarity": "rare", "unlock": {"map": 6, "wave": 40}, "cost": 220,
 		"damage": 60.0, "rate": 0.3, "range": 4.2, "dmg_type": "physical",
 		"air": false, "ground": true, "splash": 1.1, "stun_chance": 0.2, "stun_dur": 0.5,
 		"projectile": "rock", "color": Color(0.45, 0.4, 0.35),
@@ -185,7 +191,7 @@ const TOWERS := {
 	},
 	# --- Torres de oro de fin de juego (mapas 8-15): usan modelos existentes con su propia paleta ---
 	"elite_archers": {
-		"name": "Arqueros de la Guardia Real", "rarity": "common", "unlock": {"map": 7, "wave": 40}, "cost": 260,
+		"name": "Arqueros de la Guardia Real", "rarity": "rare", "unlock": {"map": 7, "wave": 40}, "cost": 260,
 		"model": "archer", "hue": 0.62, "sat": 1.1,
 		"damage": 38.0, "rate": 1.3, "range": 3.0, "dmg_type": "physical",
 		"air": true, "ground": true, "multishot": 2, "projectile": "arrow",
@@ -195,7 +201,7 @@ const TOWERS := {
 		"perks": {"multishot": 4, "crit_bonus": 0.15},
 	},
 	"greek_fire": {
-		"name": "Mortero de Fuego Griego", "rarity": "common", "unlock": {"map": 8, "wave": 40}, "cost": 320,
+		"name": "Mortero de Fuego Griego", "rarity": "rare", "unlock": {"map": 8, "wave": 40}, "cost": 320,
 		"model": "mortar", "hue": 0.05, "sat": 1.3,
 		"damage": 110.0, "rate": 0.3, "range": 4.0, "dmg_type": "fire",
 		"air": false, "ground": true, "splash": 1.2, "dot": 40.0, "dot_dur": 3.0,
@@ -205,7 +211,7 @@ const TOWERS := {
 		"perks": {"splash": 1.6, "dot": 80.0},
 	},
 	"siege_crossbow": {
-		"name": "Gran Ballesta de Asedio", "rarity": "common", "unlock": {"map": 9, "wave": 40}, "cost": 380,
+		"name": "Gran Ballesta de Asedio", "rarity": "epic", "unlock": {"map": 9, "wave": 40}, "cost": 380,
 		"model": "crossbow", "hue": 0.55, "sat": 0.9,
 		"damage": 230.0, "rate": 0.35, "range": 3.6, "dmg_type": "physical",
 		"air": true, "ground": true, "armor_break": 0.7, "crit_bonus": 0.15, "detect": true, "projectile": "bolt",
@@ -215,7 +221,7 @@ const TOWERS := {
 		"perks": {"armor_break": 1.0, "crit_bonus": 0.35},
 	},
 	"frost_sanctum": {
-		"name": "Santuario de Escarcha", "rarity": "common", "unlock": {"map": 10, "wave": 40}, "cost": 400,
+		"name": "Santuario de Escarcha", "rarity": "epic", "unlock": {"map": 10, "wave": 40}, "cost": 400,
 		"model": "frost", "hue": 0.12, "sat": 1.2,
 		"damage": 45.0, "rate": 0.4, "range": 2.8, "dmg_type": "ice",
 		"air": true, "ground": true, "splash": 0.9, "stun_chance": 1.0, "stun_dur": 1.2, "prefer": "unfrozen",
@@ -225,7 +231,7 @@ const TOWERS := {
 		"perks": {"splash": 1.3, "stun_dur": 2.0},
 	},
 	"arcane_spire": {
-		"name": "Aguja Arcana", "rarity": "common", "unlock": {"map": 11, "wave": 40}, "cost": 460,
+		"name": "Aguja Arcana", "rarity": "epic", "unlock": {"map": 11, "wave": 40}, "cost": 460,
 		"model": "storm", "hue": 0.72, "sat": 1.2,
 		"damage": 140.0, "rate": 0.7, "range": 2.8, "dmg_type": "lightning",
 		"air": true, "ground": true, "chain": 4, "projectile": "",
@@ -235,7 +241,7 @@ const TOWERS := {
 		"perks": {"chain": 8, "stun_chance": 0.15, "stun_dur": 0.8},
 	},
 	"cathedral": {
-		"name": "Catedral de la Luz", "rarity": "common", "unlock": {"map": 12, "wave": 40}, "cost": 520,
+		"name": "Catedral de la Luz", "rarity": "legendary", "unlock": {"map": 12, "wave": 40}, "cost": 520,
 		"model": "bell", "hue": 0.55, "sat": 0.8, "val": 1.15,
 		"damage": 70.0, "rate": 0.8, "range": 2.6, "dmg_type": "holy",
 		"air": true, "ground": true, "speed_aura": 0.25, "aura_range": 1.9, "projectile": "holy",
@@ -245,7 +251,7 @@ const TOWERS := {
 		"perks": {"speed_aura": 0.45, "aura_range": 2.4},
 	},
 	"dragon_cannon": {
-		"name": "Cañón del Dragón", "rarity": "common", "unlock": {"map": 14, "wave": 40}, "cost": 650,
+		"name": "Cañón del Dragón", "rarity": "legendary", "unlock": {"map": 14, "wave": 40}, "cost": 650,
 		"model": "cannon", "hue": 0.95, "sat": 1.3, "val": 0.85,
 		"damage": 420.0, "rate": 0.32, "range": 3.4, "dmg_type": "physical",
 		"air": false, "ground": true, "splash": 1.3, "stun_chance": 0.25, "stun_dur": 0.6,
@@ -679,49 +685,41 @@ const UPGRADE_COST_MULT := 3.0
 ## Copias para pasar del nivel N al N+1 (índice N-1). Nivel 1 = obtener la carta.
 const CARD_COPIES := [5, 15, 40, 100]
 
-# ---------------------------------------------------------------- Sobres de cartas
+# ---------------------------------------------------------------- Sobres de cartas (se compran con oro)
+## Versión de PC: no hay gemas ni anuncios. Los sobres se compran con el oro de las partidas y son
+## la ÚNICA forma de desbloquear torres (solo la Torre de Arqueros viene de serie) y héroes.
 const PACKS := {
-	"common": {"name": "Sobre de Bronce", "cards": 5, "gems": 60, "ads": 1,
+	"common": {"name": "Sobre de Bronce", "cards": 5, "gold": 600,
 		"weights": {"common": 72.0, "uncommon": 22.0, "rare": 5.0, "epic": 0.9, "legendary": 0.1}, "guarantee": "", "color": Color(0.7, 0.45, 0.25)},
-	"rare": {"name": "Sobre de Plata", "cards": 5, "gems": 160, "ads": 3,
+	"rare": {"name": "Sobre de Plata", "cards": 5, "gold": 1800,
 		"weights": {"common": 56.0, "uncommon": 29.0, "rare": 11.5, "epic": 3.0, "legendary": 0.5}, "guarantee": "uncommon", "color": Color(0.7, 0.75, 0.85)},
-	"epic": {"name": "Sobre de Oro", "cards": 5, "gems": 420, "ads": 6,
+	"epic": {"name": "Sobre de Oro", "cards": 5, "gold": 5000,
 		"weights": {"common": 45.0, "uncommon": 31.0, "rare": 17.0, "epic": 6.0, "legendary": 1.0}, "guarantee": "rare", "color": Color(0.95, 0.75, 0.2)},
-	"legendary": {"name": "Cofre del Rey", "cards": 5, "gems": 1000, "ads": 15,
+	"legendary": {"name": "Cofre del Rey", "cards": 5, "gold": 12000,
 		"weights": {"common": 30.0, "uncommon": 30.0, "rare": 25.0, "epic": 12.0, "legendary": 3.0}, "guarantee": "epic", "color": Color(0.8, 0.3, 0.95)},
 	# Sobres de la tienda: de TORRES o de HÉROES, en bronce, plata y oro (más caros = mejores)
-	"tower_bronze": {"name": "Torres de Bronce", "kind": "tower", "tier": "bronze", "cover": "archer", "cards": 5, "gems": 60, "ads": 1,
+	"tower_bronze": {"name": "Torres de Bronce", "kind": "tower", "tier": "bronze", "cover": "archer", "cards": 5, "gold": 400,
 		"weights": {"common": 72.0, "uncommon": 22.0, "rare": 5.0, "epic": 0.9, "legendary": 0.1}, "guarantee": "", "color": Color(0.8, 0.5, 0.28)},
-	"tower_silver": {"name": "Torres de Plata", "kind": "tower", "tier": "silver", "cover": "mage", "cards": 5, "gems": 160, "ads": 3,
+	"tower_silver": {"name": "Torres de Plata", "kind": "tower", "tier": "silver", "cover": "mage", "cards": 5, "gold": 1500,
 		"weights": {"common": 55.0, "uncommon": 30.0, "rare": 11.5, "epic": 3.0, "legendary": 0.5}, "guarantee": "rare", "color": Color(0.72, 0.77, 0.86)},
-	"tower_gold": {"name": "Torres de Oro", "kind": "tower", "tier": "gold", "cover": "inferno", "cards": 5, "gems": 420, "ads": 6,
+	"tower_gold": {"name": "Torres de Oro", "kind": "tower", "tier": "gold", "cover": "inferno", "cards": 5, "gold": 4500,
 		"weights": {"common": 40.0, "uncommon": 32.0, "rare": 19.0, "epic": 7.5, "legendary": 1.5}, "guarantee": "epic", "color": Color(0.97, 0.78, 0.22)},
-	"hero_bronze": {"name": "Héroes de Bronce", "kind": "hero", "tier": "bronze", "cover": "aldric", "cards": 5, "gems": 120, "ads": 2,
+	"hero_bronze": {"name": "Héroes de Bronce", "kind": "hero", "tier": "bronze", "cover": "aldric", "cards": 5, "gold": 800,
 		"weights": {"common": 72.0, "uncommon": 22.0, "rare": 5.0, "epic": 0.9, "legendary": 0.1}, "guarantee": "", "color": Color(0.8, 0.5, 0.28)},
-	"hero_silver": {"name": "Héroes de Plata", "kind": "hero", "tier": "silver", "cover": "sylva", "cards": 5, "gems": 300, "ads": 5,
+	"hero_silver": {"name": "Héroes de Plata", "kind": "hero", "tier": "silver", "cover": "sylva", "cards": 5, "gold": 2600,
 		"weights": {"common": 55.0, "uncommon": 30.0, "rare": 11.5, "epic": 3.0, "legendary": 0.5}, "guarantee": "rare", "color": Color(0.72, 0.77, 0.86)},
-	"hero_gold": {"name": "Héroes de Oro", "kind": "hero", "tier": "gold", "cover": "vex", "cards": 5, "gems": 750, "ads": 10,
+	"hero_gold": {"name": "Héroes de Oro", "kind": "hero", "tier": "gold", "cover": "vex", "cards": 5, "gold": 7500,
 		"weights": {"common": 40.0, "uncommon": 32.0, "rare": 19.0, "epic": 7.5, "legendary": 1.5}, "guarantee": "epic", "color": Color(0.97, 0.78, 0.22)},
 }
 const SHOP_PACKS := {"tower": ["tower_bronze", "tower_silver", "tower_gold"], "hero": ["hero_bronze", "hero_silver", "hero_gold"]}
-
-# ---------------------------------------------------------------- Tienda (dinero real)
-# Los product_id deben coincidir con los productos creados en Google Play Console.
-const IAP_PRODUCTS := {
-	"no_ads": {"name": "Sin Anuncios", "desc": "Nunca más anuncios: todas las recompensas por anuncio (x2 de jefes, ausencia, sobres...) se dan solas. +200 gemas.", "price": "US$4.99", "consumable": false},
-	"starter_pack": {"name": "Pack de Inicio", "desc": "500 gemas + Sobre de Oro + 5000 oro. ¡Solo una vez!", "price": "US$1.99", "consumable": false},
-	"gems_100": {"name": "Puñado de Gemas", "desc": "120 gemas", "price": "US$0.99", "consumable": true, "gems": 120},
-	"gems_550": {"name": "Bolsa de Gemas", "desc": "650 gemas (+18%)", "price": "US$4.99", "consumable": true, "gems": 650},
-	"gems_1200": {"name": "Cofre de Gemas", "desc": "1400 gemas (+27%)", "price": "US$9.99", "consumable": true, "gems": 1400},
-	"gems_2600": {"name": "Tesoro del Dragón", "desc": "3200 gemas (+45%)", "price": "US$19.99", "consumable": true, "gems": 3200},
-	"growth_fund": {"name": "Fondo del Reino", "desc": "Invierte una vez y recibe 3000 gemas al subir de nivel de cuenta (5, 10, 15, 20, 30 y 40).", "price": "US$4.99", "consumable": false},
-	"monthly_card": {"name": "Cofre Mensual", "desc": "300 gemas al momento y 60 gemas cada día durante 30 días (en el Diario).", "price": "US$4.99", "consumable": true},
-	"season_pass": {"name": "Pase Real", "desc": "Desbloquea las recompensas premium de la temporada actual (sobres de oro, cofres del rey, gemas).", "price": "US$4.99", "consumable": true},
-}
+## Torre con la que se empieza: el resto se consigue en sobres.
+const STARTER_TOWER := "archer"
+## Lo que antes costaba (o daba) gemas ahora cuesta (o da) oro a este cambio.
+const GEM_GOLD := 50
 
 # ---------------------------------------------------------------- Nivel de cuenta
 ## XP para pasar del nivel `lvl` al siguiente.
-const XP_SOURCES := {"waves": 10, "bosses": 60, "packs": 20, "build": 2, "upgrade": 2, "ads": 15}
+const XP_SOURCES := {"waves": 10, "bosses": 60, "packs": 20, "build": 2, "upgrade": 2}
 
 
 func xp_to_next(lvl: int) -> int:
@@ -732,9 +730,11 @@ func xp_to_next(lvl: int) -> int:
 func level_reward(lvl: int) -> Dictionary:
 	var r := {"coins": 150 * lvl}
 	if lvl % 5 == 0:
-		r["gems"] = 40 + lvl * 2
+		r["coins"] = int(r["coins"]) + (40 + lvl * 2) * GEM_GOLD
 	if lvl % 10 == 0:
 		r["pack"] = "rare" if lvl % 30 != 0 else "epic"
+	elif lvl % 3 == 0:
+		r["pack"] = "tower_bronze"
 	return r
 
 
@@ -751,75 +751,8 @@ const ACHIEVEMENTS := [
 	{"id": "cards", "name": "Archivo del reino", "desc": "Consigue %s cartas distintas", "tiers": [6, 10, 14, 18, 20]},
 	{"id": "level", "name": "Leyenda viva", "desc": "Alcanza el nivel de cuenta %s", "tiers": [5, 10, 25, 50, 100]},
 ]
-const ACHIEVEMENT_GEMS := [10, 25, 50, 100, 200, 400]
-
-# ---------------------------------------------------------------- Pase de temporada (mensual)
-const SEASON_TIERS := 40
-const SEASON_XP_PER_TIER := 400
-
-
-## Recompensa del nivel `tier` (1..40) del camino gratuito o premium.
-func season_reward(tier: int, premium: bool) -> Dictionary:
-	if premium:
-		if tier % 10 == 0:
-			return {"pack": "legendary"}
-		if tier % 5 == 0:
-			return {"pack": "epic", "gems": 50}
-		if tier % 2 == 0:
-			return {"gems": 30 + tier}
-		return {"coins": 800 + tier * 60, "pack": "rare"}
-	if tier % 10 == 0:
-		return {"pack": "epic"}
-	if tier % 5 == 0:
-		return {"gems": 25}
-	if tier % 3 == 0:
-		return {"pack": "common"}
-	return {"coins": 300 + tier * 30}
-
-
-# ---------------------------------------------------------------- Tesoro del castillo (ingreso pasivo)
-const TREASURY_MAX_HOURS := 8.0
-
-
-func treasury_rate(unlocked_maps: int) -> float:
-	return 40.0 + 35.0 * unlocked_maps # monedas por hora
-
-
-# ---------------------------------------------------------------- Oferta del día (rota cada día)
-const DAILY_DEALS := [
-	{"name": "Ganga de Plata", "reward": {"pack": "rare"}, "gems": 90, "was": 160},
-	{"name": "Oro del Gremio", "reward": {"coins": 12000}, "gems": 150, "was": 250},
-	{"name": "Cofre Dorado", "reward": {"pack": "epic"}, "gems": 260, "was": 420},
-	{"name": "Fortuna Real", "reward": {"coins": 6000, "pack": "rare"}, "gems": 170, "was": 300},
-	{"name": "Botín de Bronce x2", "reward": {"pack": "common", "coins": 3000}, "gems": 60, "was": 120},
-]
-
-# ---------------------------------------------------------------- Recompensas diarias (ciclo de 7 días)
-const DAILY_REWARDS := [
-	{"coins": 300},
-	{"gems": 20},
-	{"pack": "common"},
-	{"coins": 1000},
-	{"gems": 50},
-	{"pack": "rare"},
-	{"legendary": true}, # Día 7: una torre o héroe LEGENDARIO (primero los que no tienes)
-]
-const DAILY_DAY7_DOUBLE := {"gems": 150} # el x2 del día 7 da gemas en vez de otra legendaria
-
-const QUEST_POOL := [
-	{"id": "kills", "desc": "Derrota %d enemigos", "goal": 400, "gems": 15},
-	{"id": "waves", "desc": "Supera %d oleadas", "goal": 40, "gems": 15},
-	{"id": "build", "desc": "Construye %d torres", "goal": 20, "gems": 10},
-	{"id": "upgrade", "desc": "Mejora torres %d veces", "goal": 25, "gems": 10},
-	{"id": "bosses", "desc": "Derrota %d jefes", "goal": 2, "gems": 20},
-	{"id": "ads", "desc": "Mira %d anuncios con recompensa", "goal": 3, "gems": 15},
-	{"id": "packs", "desc": "Abre %d sobres", "goal": 2, "gems": 15},
-	{"id": "flyers", "desc": "Derriba %d voladores", "goal": 60, "gems": 15},
-]
-
-const MAX_REWARDED_ADS_PER_DAY := 15
-const FREE_PACK_COOLDOWN := 12 * 3600 # el juego regala un sobre cada 12 horas
-const AD_PACK_COOLDOWN := 3 * 3600 # y otro cada 3 horas viendo un anuncio
+## Oro por cada nivel de logro.
+const ACHIEVEMENT_GOLD := [500, 1250, 2500, 5000, 10000, 20000]
 
 
 # ================================================================ Helpers
@@ -1042,27 +975,27 @@ func _build_themed_enemies() -> void:
 		MAPS[mi]["boss"] = boss_id
 
 
-# ================================================================ Jefes y evolución con gemas
+# ================================================================ Jefes y niveles permanentes
 const BOSS_EVERY := 10 # un jefe cada 10 oleadas
 const FIRST_HERO := "aldric" # héroe por defecto si no tienes ninguno (no se regala: solo sale en sobres)
-## Héroes: nivel permanente que se sube con gemas (no se pierde entre partidas).
+## Héroes: nivel permanente que se sube con oro (no se pierde entre partidas).
 const HERO_MAX_LEVEL := 10
 const HERO_LEVEL_BASE_GEMS := 25
 const HERO_LEVEL_GROWTH := 1.45
 
 
-## Gemas por derrotar a un jefe.
-func boss_gems(map_idx: int, wave: int) -> int:
-	# Los jefes son el momento clave: dan bastantes más gemas (crecen con el mapa y la oleada)
-	return 5 + map_idx * 2 + wave / 10
+## Oro extra por derrotar a un jefe.
+func boss_gold(map_idx: int, wave: int) -> int:
+	# Los jefes son el momento clave: dan un buen botín (crece con el mapa y la oleada)
+	return (5 + map_idx * 2 + wave / 10) * GEM_GOLD
 
 
-## Bono de gemas la primera vez que se llega a un múltiplo de 50 oleadas en un mapa.
-func milestone_gems(map_idx: int, wave: int) -> int:
-	return 10 + map_idx * 2 + (wave / 50) * 5
+## Bono de oro la primera vez que se llega a un múltiplo de 50 oleadas en un mapa.
+func milestone_gold(map_idx: int, wave: int) -> int:
+	return (10 + map_idx * 2 + (wave / 50) * 5) * GEM_GOLD
 
 
-# ---------------------------------------------------------------- Entrenamiento de torres (Fortaleza, gemas)
+# ---------------------------------------------------------------- Entrenamiento de torres (Fortaleza, oro)
 ## Cada torre tiene un nivel inicial permanente: al construirla, en cualquier mapa, empieza en ese nivel.
 const TOWER_TRAIN_MAX := 15 # hasta la Maestría
 const TOWER_TRAIN_BASE_GEMS := 12
@@ -1131,51 +1064,17 @@ const PACK_TOWER_BONUS := {"common": 1.5, "uncommon": 1.7, "rare": 2.0, "epic": 
 const PACK_TOWER_RANGE := 1.1
 
 
-# ================================================================ Misiones y evento semanales
-const WEEKLY_POOL := [
-	{"id": "kills", "desc": "Derrota %d enemigos", "goal": 5000, "gems": 40},
-	{"id": "waves", "desc": "Supera %d oleadas", "goal": 300, "gems": 40},
-	{"id": "bosses", "desc": "Derrota %d jefes", "goal": 15, "gems": 50},
-	{"id": "packs", "desc": "Abre %d sobres", "goal": 8, "gems": 40},
-	{"id": "upgrade", "desc": "Mejora torres %d veces", "goal": 150, "gems": 30},
-	{"id": "build", "desc": "Construye %d torres", "goal": 100, "gems": 30},
-	{"id": "flyers", "desc": "Derriba %d voladores", "goal": 800, "gems": 40},
-	{"id": "ads", "desc": "Mira %d anuncios con recompensa", "goal": 15, "gems": 35},
-	{"id": "evolve", "desc": "Evoluciona %d torres a Maestría", "goal": 5, "gems": 50},
-]
-const WEEKLY_BONUS := {"pack": "epic"} # premio por completar todas las semanales
-
-const WEEKLY_EVENTS := [
-	{"id": "gold_rush", "name": "Fiebre del Oro", "desc": "+50% de oro en las partidas", "gold": 1.5},
-	{"id": "boss_hunt", "name": "Cazadores de Jefes", "desc": "Los jefes dan el doble de gemas", "boss_gems": 2.0},
-	{"id": "pack_week", "name": "Semana de Sobres", "desc": "Los sobres por anuncios cuestan 1 anuncio menos", "pack_ads": -1},
-	{"id": "coin_feast", "name": "Banquete Real", "desc": "+75% de oro por oleada", "coins": 1.75},
-	{"id": "xp_week", "name": "Semana de Leyendas", "desc": "Doble XP de cuenta y de pase", "xp": 2.0},
-]
-
-
-# ================================================================ Monetización (según la biblia de monetización)
-## Tasa de referencia para mostrar el precio real de las gemas (paquete de US$4.99 = 650 gemas).
-const GEMS_PER_USD := 130.0
+# ================================================================ Sobres: garantías y duplicados
 ## Garantías de los sobres (pity): cartas sin esa rareza hasta asegurarla.
 const PITY_EPIC := 20
 const PITY_LEGENDARY := 90
 const SOFT_PITY_START := 70
-## Monedas por cada copia sobrante de una carta ya al nivel máximo (por rareza).
+## Oro por cada copia sobrante de una carta ya al nivel máximo (por rareza).
 const DUPLICATE_COINS := {"common": 300, "uncommon": 600, "rare": 1200, "epic": 2500, "legendary": 5000}
-## Fondo del Reino: nivel de cuenta -> gemas.
-const GROWTH_FUND := {5: 200, 10: 300, 15: 400, 20: 500, 30: 700, 40: 900}
-const MONTHLY_DAILY_GEMS := 60
-const STARTER_HOURS := 48
-const STREAK_SHIELD_GEMS := 20
-## Desbloqueo escalonado de la columna derecha (nivel de cuenta mínimo).
-const FEATURE_LEVELS := {"daily": 1, "quests": 1, "shop": 1, "treasury": 2, "achievements": 2, "pass": 3, "ranking": 3, "coop": 4}
-## Tienda diaria: cartas concretas por monedas (sin azar).
-const DAILY_SHOP_PRICE := {"common": 1500, "uncommon": 3000, "rare": 6000, "epic": 12000, "legendary": 30000}
-const DAILY_SHOP_COPIES := {"common": 3, "uncommon": 2, "rare": 2, "epic": 1, "legendary": 1}
 
 
-# ================================================================ Fortaleza: mejoras exclusivas con gemas
+
+# ================================================================ Fortaleza: mejoras especiales (con oro)
 ## Permanentes para todos los mapas; cada nivel cuesta GEM_UPGRADE_GROWTH veces más que el anterior.
 const GEM_UPGRADES := {
 	"g_damage": {"name": "Bendición Real", "desc": "x1.08 daño de todas las torres (acumulativo)", "per_level": 0.08, "max": 15, "base_gems": 40, "mult": true, "icon": "sword"},
@@ -1184,7 +1083,7 @@ const GEM_UPGRADES := {
 	"g_coins": {"name": "Cofre Real", "desc": "+10% oro ganado", "per_level": 0.1, "max": 10, "base_gems": 50, "icon": "coin_bag"},
 	"g_lives": {"name": "Bastión Encantado", "desc": "+15 de vida de la fortaleza", "per_level": 15.0, "max": 6, "base_gems": 45, "icon": "heart"},
 }
-const GEM_UPGRADE_GROWTH := 1.4
+const GEM_UPGRADE_GROWTH := 1.4 # el coste base ("base_gems") se multiplica por GEM_GOLD
 
 
 ## Ordena cartas por color de rareza (común → legendaria). Con `owned_first`, dentro de cada
