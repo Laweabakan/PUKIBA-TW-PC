@@ -7,7 +7,7 @@ const HP_BASE := 28.0 # PC: caminos largos y muchas torres; antes 16
 const HP_GROWTH := 1.025
 const LATE_WAVE := 60 # desde esta oleada la vida crece más deprisa (el fin de juego era demasiado fácil)
 const LATE_GROWTH := 1.035
-const LATE_MAP := 0.02 # x1.3 en el mapa 5, x3 en el mapa 10, x8 en el mapa 20
+const LATE_MAP := 0.08 # x2.3 en el mapa 5, x7.5 en el mapa 10, x30 en el mapa 20
 
 
 const NORMAL_HP_MULT := 1.5 # vida extra de los monstruos normales y élites

@@ -67,7 +67,7 @@ func _run(map_idx: int) -> int:
 	var rotation := ["archer", "cannon", "mage", "frost", "crossbow", "ballista", "storm", "poison", "obelisk", "inferno", "sanctuary", "druid", "rocket", "alchemist"]
 	var ri := 0
 	game.auto_wave = true
-	Engine.time_scale = 4.0
+	Engine.time_scale = float(OS.get_environment("SIM_SPEED")) if OS.get_environment("SIM_SPEED") != "" else 4.0
 	var frames := 0
 	while not game.over and game.last_cleared < 500 and frames < 400000:
 		frames += 1
